@@ -1,0 +1,46 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: jingdong-backend
+  datasource:
+    url: jdbc:mysql://localhost:33061/jingdong?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: jingdong
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 63791
+      password: 12345
+      database: 0
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: input
+
+app:
+  jwt:
+    secret: "change-this-dev-secret-at-least-32-bytes"
+    expiration-minutes: 10080
+    refresh-expiration-minutes: 43200
+  cors:
+    allowed-origins:
+      - "http://localhost:5173"
+      - "http://127.0.0.1:5173"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

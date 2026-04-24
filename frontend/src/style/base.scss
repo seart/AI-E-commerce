@@ -1,0 +1,55 @@
+:root {
+  color-scheme: light;
+  --app-bg: #eef2f6;
+  --app-card: rgba(255, 255, 255, 0.96);
+  --app-text: #202124;
+  --app-subtext: #6b7280;
+  --app-primary: #e1251b;
+  --app-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+html,
+body,
+#app {
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background:
+    radial-gradient(circle at top, rgba(225, 37, 27, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fafc 0%, var(--app-bg) 100%);
+  color: var(--app-text);
+  font-family:
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    'Segoe UI',
+    sans-serif;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  background-color: #fff;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-top);
+  box-shadow: var(--app-shadow);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+a {
+  text-decoration: none;
+}
