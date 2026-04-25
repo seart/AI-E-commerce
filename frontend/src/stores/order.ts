@@ -33,6 +33,18 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
+  async function cancelOrder(orderId: string, reason?: string) {
+    const order = await orderService.cancelOrder(orderId, reason)
+    orders.value = orders.value.map((item) => (item.id === order.id ? order : item))
+    return order
+  }
+
+  async function requestRefund(orderId: string, reason?: string) {
+    const order = await orderService.requestRefund(orderId, reason)
+    orders.value = orders.value.map((item) => (item.id === order.id ? order : item))
+    return order
+  }
+
   function reset() {
     orders.value = []
   }
@@ -43,6 +55,8 @@ export const useOrderStore = defineStore('order', () => {
     submitting,
     loadOrders,
     createOrder,
+    cancelOrder,
+    requestRefund,
     reset,
   }
 })

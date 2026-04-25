@@ -26,7 +26,33 @@
             </div>
 
             <div class="order-address">{{ formatAddress(order.address) }}</div>
+            <div class="payment-line">
+              <span>{{ paymentText(order.paymentStatus) }}</span>
+              <span v-if="order.paymentChannel"> · {{ channelText(order.paymentChannel) }}</span>
+              <span v-if="order.paymentExpireAt && order.status === 'PENDING_PAYMENT'">
+                · {{ formatDateTime(order.paymentExpireAt) }} 前支付
+              </span>
+            </div>
             <div class="order-time">{{ formatDateTime(order.createdAt) }}</div>
+            <div class="order-actions">
+              <el-button
+                v-if="order.status === 'PENDING_PAYMENT'"
+                size="small"
+                :loading="actionLoading === order.id"
+                @click="cancel(order.id)"
+              >
+                取消订单
+              </el-button>
+              <el-button
+                v-if="canRefund(order.status)"
+                size="small"
+                type="warning"
+                :loading="actionLoading === order.id"
+                @click="refund(order.id)"
+              >
+                申请退款
+              </el-button>
+            </div>
           </div>
         </div>
 
@@ -39,20 +65,68 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { ElMessage } from 'element-plus'
 import TabBar from '@/components/TabBar.vue'
 import { useOrderStore } from '@/stores/order'
 import { formatAddress, formatDateTime } from '@/utils/format'
+import type { OrderStatus, PaymentChannel, PaymentStatus } from '@/types/domain'
 
 defineOptions({ name: 'OrdersView' })
 
 const orderStore = useOrderStore()
 const { orders, loading } = storeToRefs(orderStore)
+const actionLoading = ref('')
 
 onMounted(async () => {
   await orderStore.loadOrders(true)
 })
+
+function canRefund(status: OrderStatus) {
+  return ['PAID', 'PREPARING', 'DELIVERING', 'COMPLETED'].includes(status)
+}
+
+async function cancel(orderId: string) {
+  actionLoading.value = orderId
+  try {
+    await orderStore.cancelOrder(orderId, '用户取消待支付订单')
+    ElMessage.success('订单已取消，库存已释放')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '取消订单失败')
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
+async function refund(orderId: string) {
+  actionLoading.value = orderId
+  try {
+    await orderStore.requestRefund(orderId, '用户申请退款')
+    ElMessage.success('退款申请已提交')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '申请退款失败')
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
+function paymentText(status: PaymentStatus) {
+  return {
+    PENDING: '待发起支付',
+    PAYING: '等待支付',
+    PAID: '已支付',
+    CLOSED: '支付关闭',
+    EXPIRED: '支付超时',
+  }[status]
+}
+
+function channelText(channel: PaymentChannel) {
+  return {
+    ALIPAY_QR: '支付宝',
+    WECHAT_QR: '微信',
+  }[channel]
+}
 </script>
 
 <style scoped>
@@ -63,10 +137,22 @@ onMounted(async () => {
 }
 
 .order-time,
-.order-address {
+.order-address,
+.payment-line {
   font-size: 12px;
   color: #999;
   margin-top: 12px;
+}
+
+.payment-line {
+  color: #666;
+}
+
+.order-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  gap: 8px;
 }
 
 .fake-img-text {

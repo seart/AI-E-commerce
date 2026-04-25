@@ -7,21 +7,26 @@ spring:
   application:
     name: jingdong-backend
   datasource:
-    url: jdbc:mysql://localhost:33061/jingdong?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: jingdong
-    password: 123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:33061/jingdong?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:jingdong}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: ${MYSQL_DRIVER:com.mysql.cj.jdbc.Driver}
   data:
     redis:
-      host: localhost
-      port: 63791
-      password: 12345
-      database: 0
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:63791}
+      password: ${REDIS_PASSWORD:12345}
+      database: ${REDIS_DATABASE:0}
   sql:
     init:
       mode: always
       schema-locations: classpath:db/schema.sql
       data-locations: classpath:db/data.sql
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:jingdong-payment-producer}
 
 mybatis-plus:
   configuration:
@@ -33,13 +38,49 @@ mybatis-plus:
 
 app:
   jwt:
-    secret: "change-this-dev-secret-at-least-32-bytes"
-    expiration-minutes: 10080
-    refresh-expiration-minutes: 43200
+    secret: ${JWT_SECRET:change-this-dev-secret-at-least-32-bytes}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:10080}
+    refresh-expiration-minutes: ${JWT_REFRESH_EXPIRATION_MINUTES:43200}
+  payment:
+    expire-minutes: ${PAYMENT_EXPIRE_MINUTES:15}
+    sdk-enabled: ${PAYMENT_SDK_ENABLED:false}
+    real-gateway-enabled: ${PAYMENT_REAL_GATEWAY_ENABLED:true}
+    public-base-url: ${PAYMENT_PUBLIC_BASE_URL:http://localhost:8080/api}
+    wechat-tenant-id: ${WECHAT_PAY_TENANT_ID:default}
+    rocketmq:
+      enabled: ${PAYMENT_ROCKETMQ_ENABLED:false}
+      close-topic: ${PAYMENT_CLOSE_TOPIC:jingdong-payment-close}
+      close-consumer-group: ${PAYMENT_CLOSE_CONSUMER_GROUP:jingdong-payment-close-consumer}
   cors:
     allowed-origins:
       - "http://localhost:5173"
       - "http://127.0.0.1:5173"
+      - "http://localhost:5174"
+      - "http://127.0.0.1:5174"
+
+wechat:
+  pay:
+    v3:
+      default:
+        app-id: ${WECHAT_PAY_APP_ID:}
+        app-secret: ${WECHAT_PAY_APP_SECRET:}
+        app-v3-secret: ${WECHAT_PAY_APP_V3_SECRET:}
+        mch-id: ${WECHAT_PAY_MCH_ID:}
+        domain: ${PAYMENT_PUBLIC_BASE_URL:http://localhost:8080/api}
+        cert-path: ${WECHAT_PAY_CERT_PATH:}
+
+ali:
+  pay:
+    v1:
+      server-url: ${ALIPAY_SERVER_URL:https://openapi.alipaydev.com/gateway.do}
+      app-id: ${ALIPAY_APP_ID:}
+      app-private-key-path: ${ALIPAY_APP_PRIVATE_KEY_PATH:}
+      alipay-public-cert-path: ${ALIPAY_PUBLIC_CERT_PATH:}
+      alipay-root-cert-path: ${ALIPAY_ROOT_CERT_PATH:}
+      app-cert-public-key-path: ${ALIPAY_APP_CERT_PUBLIC_KEY_PATH:}
+      charset: ${ALIPAY_CHARSET:utf-8}
+      format: ${ALIPAY_FORMAT:json}
+      sign-type: ${ALIPAY_SIGN_TYPE:RSA2}
 
 springdoc:
   swagger-ui:

@@ -23,4 +23,26 @@ export const orderService = {
       () => mockServer.createOrder(addressId, items),
     )
   },
+
+  cancelOrder(orderId: string, reason = '用户取消订单') {
+    return request<Order>(
+      {
+        method: 'post',
+        url: `/orders/${orderId}/cancel`,
+        data: { reason },
+      },
+      () => mockServer.cancelOrder(orderId, reason),
+    )
+  },
+
+  requestRefund(orderId: string, reason = '用户申请退款') {
+    return request<Order>(
+      {
+        method: 'post',
+        url: `/orders/${orderId}/refund`,
+        data: { reason },
+      },
+      () => mockServer.requestRefund(orderId, reason),
+    )
+  },
 }

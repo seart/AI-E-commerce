@@ -59,19 +59,53 @@
 
     <el-dialog
       v-model="showConfirmDialog"
-      title="确认支付"
+      title="选择支付方式"
       width="320px"
       align-center
       :show-close="false"
     >
-      <span>订单将进入真实提交流程，确认继续吗？</span>
+      <div class="pay-choice">
+        <p>提交后订单会进入待支付状态，请在超时时间内完成扫码支付。</p>
+        <el-radio-group v-model="selectedChannel" class="pay-radio-group">
+          <el-radio-button label="ALIPAY_QR">支付宝扫码</el-radio-button>
+          <el-radio-button label="WECHAT_QR">微信扫码</el-radio-button>
+        </el-radio-group>
+      </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showConfirmDialog = false">取消</el-button>
           <el-button type="primary" :loading="submitting" @click="processPayment">
-            确认支付
+            生成二维码
           </el-button>
         </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showPayDialog"
+      title="扫码支付"
+      width="340px"
+      align-center
+      :close-on-click-modal="false"
+      @closed="clearPaymentPolling"
+    >
+      <div class="qr-panel" v-if="activePayment">
+        <div class="qr-amount">¥{{ activePayment.amount.toFixed(2) }}</div>
+        <canvas ref="payCanvas" class="qr-canvas" aria-label="支付二维码"></canvas>
+        <p class="qr-tip">
+          {{ activePayment.channel === 'ALIPAY_QR' ? '请使用支付宝扫码支付' : '请使用微信扫码支付' }}
+        </p>
+        <p class="qr-expire" v-if="activePayment.expireAt">
+          {{ formatDateTime(activePayment.expireAt) }} 前有效
+        </p>
+      </div>
+      <template #footer>
+        <div class="pay-footer">
+          <el-button @click="finishShopping">稍后去订单查看</el-button>
+          <el-button type="primary" :loading="paymentChecking" @click="checkPaymentStatus">
+            我已完成支付
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -96,15 +130,18 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, CircleCheckFilled } from '@element-plus/icons-vue'
+import QRCode from 'qrcode'
 import { useCartStore } from '@/stores/cart'
 import { useOrderStore } from '@/stores/order'
 import { useAddressStore } from '@/stores/address'
-import { formatAddress } from '@/utils/format'
+import { paymentService } from '@/services/payment'
+import { formatAddress, formatDateTime } from '@/utils/format'
+import type { PaymentChannel, PaymentPrepayResponse } from '@/types/domain'
 
 defineOptions({ name: 'CheckoutView' })
 
@@ -118,7 +155,13 @@ const { defaultAddress } = storeToRefs(addressStore)
 const { submitting } = storeToRefs(orderStore)
 
 const showConfirmDialog = ref(false)
+const showPayDialog = ref(false)
 const showSuccessDialog = ref(false)
+const selectedChannel = ref<PaymentChannel>('ALIPAY_QR')
+const activePayment = ref<PaymentPrepayResponse | null>(null)
+const payCanvas = ref<HTMLCanvasElement | null>(null)
+const paymentChecking = ref(false)
+let paymentPollTimer: number | undefined
 
 onMounted(async () => {
   await Promise.all([cartStore.loadCart(true), addressStore.loadAddresses(true)])
@@ -126,6 +169,10 @@ onMounted(async () => {
   if (checkedItems.value.length === 0) {
     router.replace('/cart')
   }
+})
+
+onBeforeUnmount(() => {
+  clearPaymentPolling()
 })
 
 function goToAddressList() {
@@ -156,23 +203,88 @@ async function processPayment() {
   }
 
   try {
-    await orderStore.createOrder(
+    const order = await orderStore.createOrder(
       defaultAddress.value.id,
       checkedItems.value.map((item) => ({
         productId: item.id,
         quantity: item.quantity,
       })),
     )
+    const payment = await paymentService.prepay(order.id, selectedChannel.value)
     await cartStore.loadCart(true)
     showConfirmDialog.value = false
-    showSuccessDialog.value = true
+    activePayment.value = payment
+    showPayDialog.value = true
+    await nextTick()
+    await renderPaymentQr()
+    startPaymentPolling()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '提交订单失败')
   }
 }
 
+async function renderPaymentQr() {
+  if (!payCanvas.value || !activePayment.value) {
+    return
+  }
+
+  await QRCode.toCanvas(payCanvas.value, activePayment.value.qrContent, {
+    width: 220,
+    margin: 1,
+    color: {
+      dark: '#171717',
+      light: '#ffffff',
+    },
+  })
+}
+
+function startPaymentPolling() {
+  clearPaymentPolling()
+  paymentPollTimer = window.setInterval(() => {
+    void checkPaymentStatus()
+  }, 2500)
+}
+
+function clearPaymentPolling() {
+  if (paymentPollTimer) {
+    window.clearInterval(paymentPollTimer)
+    paymentPollTimer = undefined
+  }
+}
+
+async function checkPaymentStatus() {
+  if (!activePayment.value || paymentChecking.value) {
+    return
+  }
+
+  paymentChecking.value = true
+  try {
+    const status = await paymentService.getStatus(activePayment.value.paymentId)
+    if (status.status === 'PAID' || status.orderStatus === 'PAID') {
+      clearPaymentPolling()
+      await orderStore.loadOrders(true)
+      showPayDialog.value = false
+      showSuccessDialog.value = true
+      return
+    }
+
+    if (status.status === 'CLOSED' || status.status === 'EXPIRED' || status.orderStatus === 'PAYMENT_CLOSED') {
+      clearPaymentPolling()
+      await orderStore.loadOrders(true)
+      showPayDialog.value = false
+      ElMessage.error('支付已超时关闭，库存已释放')
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '查询支付状态失败')
+  } finally {
+    paymentChecking.value = false
+  }
+}
+
 function finishShopping() {
+  clearPaymentPolling()
   showSuccessDialog.value = false
+  showPayDialog.value = false
   router.push('/orders')
 }
 </script>
@@ -366,6 +478,56 @@ function finishShopping() {
 .success-content {
   text-align: center;
   padding: 10px 0;
+}
+
+.pay-choice p,
+.qr-tip,
+.qr-expire {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pay-radio-group {
+  margin-top: 14px;
+  width: 100%;
+}
+
+.qr-panel {
+  text-align: center;
+}
+
+.qr-amount {
+  color: #e1251b;
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.qr-canvas {
+  width: 220px;
+  height: 220px;
+  padding: 10px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.08);
+}
+
+.qr-tip {
+  margin-top: 12px;
+  color: #333;
+  font-weight: 700;
+}
+
+.qr-expire {
+  margin-top: 4px;
+}
+
+.pay-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .success-icon {

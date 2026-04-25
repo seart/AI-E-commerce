@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jingdong.backend.api.ErrorCode;
+import com.jingdong.backend.dto.admin.AdminDtos.ProductAdminResponse;
 import com.jingdong.backend.dto.address.AddressDtos.AddressRequest;
 import com.jingdong.backend.dto.address.AddressDtos.AddressResponse;
 import com.jingdong.backend.dto.cart.CartDtos.CartItemResponse;
@@ -19,6 +20,7 @@ import com.jingdong.backend.dto.order.OrderDtos.OrderLineResponse;
 import com.jingdong.backend.dto.order.OrderDtos.OrderResponse;
 import com.jingdong.backend.dto.profile.ProfileDtos.UserProfileStatsResponse;
 import com.jingdong.backend.entity.DataEntities.AddressEntity;
+import com.jingdong.backend.entity.DataEntities.AuditLogEntity;
 import com.jingdong.backend.entity.DataEntities.BannerEntity;
 import com.jingdong.backend.entity.DataEntities.CartItemEntity;
 import com.jingdong.backend.entity.DataEntities.CategoryEntity;
@@ -26,10 +28,12 @@ import com.jingdong.backend.entity.DataEntities.MerchantCategoryEntity;
 import com.jingdong.backend.entity.DataEntities.MerchantEntity;
 import com.jingdong.backend.entity.DataEntities.OrderEntity;
 import com.jingdong.backend.entity.DataEntities.OrderItemEntity;
+import com.jingdong.backend.entity.DataEntities.PaymentEntity;
 import com.jingdong.backend.entity.DataEntities.ProductEntity;
 import com.jingdong.backend.entity.DataEntities.UserEntity;
 import com.jingdong.backend.exception.BusinessException;
 import com.jingdong.backend.mapper.AddressMapper;
+import com.jingdong.backend.mapper.AuditLogMapper;
 import com.jingdong.backend.mapper.BannerMapper;
 import com.jingdong.backend.mapper.CartItemMapper;
 import com.jingdong.backend.mapper.CategoryMapper;
@@ -37,6 +41,7 @@ import com.jingdong.backend.mapper.MerchantCategoryMapper;
 import com.jingdong.backend.mapper.MerchantMapper;
 import com.jingdong.backend.mapper.OrderItemMapper;
 import com.jingdong.backend.mapper.OrderMapper;
+import com.jingdong.backend.mapper.PaymentMapper;
 import com.jingdong.backend.mapper.ProductMapper;
 import com.jingdong.backend.mapper.UserMapper;
 import java.math.BigDecimal;
@@ -72,6 +77,8 @@ public class DatabaseStore {
   private final CartItemMapper cartItemMapper;
   private final OrderMapper orderMapper;
   private final OrderItemMapper orderItemMapper;
+  private final PaymentMapper paymentMapper;
+  private final AuditLogMapper auditLogMapper;
 
   public DatabaseStore(
       ObjectMapper objectMapper,
@@ -84,7 +91,9 @@ public class DatabaseStore {
       AddressMapper addressMapper,
       CartItemMapper cartItemMapper,
       OrderMapper orderMapper,
-      OrderItemMapper orderItemMapper
+      OrderItemMapper orderItemMapper,
+      PaymentMapper paymentMapper,
+      AuditLogMapper auditLogMapper
   ) {
     this.objectMapper = objectMapper;
     this.userMapper = userMapper;
@@ -97,6 +106,8 @@ public class DatabaseStore {
     this.cartItemMapper = cartItemMapper;
     this.orderMapper = orderMapper;
     this.orderItemMapper = orderItemMapper;
+    this.paymentMapper = paymentMapper;
+    this.auditLogMapper = auditLogMapper;
   }
 
   public Optional<UserRecord> findUserByMobile(String mobile) {
@@ -121,12 +132,30 @@ public class DatabaseStore {
     user.setPassword(password);
     user.setNickname("用户" + mobile.substring(mobile.length() - 4));
     user.setMemberLevel("普通会员");
+    user.setRole("CUSTOMER");
+    user.setStatus("ACTIVE");
     user.setCouponCount(0);
     user.setFavoriteCount(0);
     user.setPoints(0);
     user.setGrowthValue(0);
     userMapper.insert(user);
     return toUserRecord(user);
+  }
+
+  public void updatePassword(String userId, String password) {
+    UserEntity user = userMapper.selectById(userId);
+    if (user != null) {
+      user.setPassword(password);
+      userMapper.updateById(user);
+    }
+  }
+
+  public void recordLogin(String userId) {
+    UserEntity user = userMapper.selectById(userId);
+    if (user != null) {
+      user.setLastLoginAt(LocalDateTime.now());
+      userMapper.updateById(user);
+    }
   }
 
   public HomeResponse home() {
@@ -151,6 +180,7 @@ public class DatabaseStore {
   public List<MerchantResponse> searchMerchants(String keyword) {
     String normalized = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
     List<MerchantEntity> merchants = merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery()
+        .eq(MerchantEntity::getStatus, "ACTIVE")
         .orderByAsc(MerchantEntity::getSortOrder));
     if (normalized.isEmpty()) {
       return merchants.stream().map(this::toMerchantResponse).toList();
@@ -169,12 +199,13 @@ public class DatabaseStore {
 
   public MerchantDetailResponse merchantDetail(String merchantId) {
     MerchantEntity merchant = merchantMapper.selectById(merchantId);
-    if (merchant == null) {
+    if (merchant == null || !"ACTIVE".equals(merchant.getStatus())) {
       throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND);
     }
 
     List<ProductResponse> products = productMapper.selectList(Wrappers.<ProductEntity>lambdaQuery()
             .eq(ProductEntity::getMerchantId, merchantId)
+            .eq(ProductEntity::getStatus, "ON_SHELF")
             .orderByAsc(ProductEntity::getSortOrder))
         .stream()
         .map(product -> toProductResponse(product, merchant))
@@ -354,7 +385,8 @@ public class DatabaseStore {
   public OrderResponse createOrder(
       String userId,
       String addressId,
-      List<CheckoutItemRequest> items
+      List<CheckoutItemRequest> items,
+      LocalDateTime paymentExpireAt
   ) {
     ensureUser(userId);
     AddressEntity address = addressMapper.selectOne(Wrappers.<AddressEntity>lambdaQuery()
@@ -387,8 +419,11 @@ public class DatabaseStore {
     order.setAddressTag(address.getTag());
     order.setAddressIsDefault(Boolean.TRUE.equals(address.getIsDefault()));
     order.setTotalAmount(totalAmount);
-    order.setStatus("PAID");
-    order.setStatusText("支付成功");
+    order.setStatus("PENDING_PAYMENT");
+    order.setStatusText("待支付");
+    order.setPaymentStatus("PENDING");
+    order.setPaymentExpireAt(paymentExpireAt);
+    order.setStatusHistoryJson(statusHistory("PENDING_PAYMENT", "订单创建，等待扫码支付"));
     order.setCreatedAt(now);
     orderMapper.insert(order);
 
@@ -414,6 +449,12 @@ public class DatabaseStore {
       orderItemMapper.insert(item);
     }
 
+    for (CheckoutItemRequest item : items) {
+      ProductEntity product = product(item.productId());
+      product.setStock(product.getStock() - item.quantity());
+      productMapper.updateById(product);
+    }
+
     List<String> purchasedProductIds = items.stream()
         .map(CheckoutItemRequest::productId)
         .toList();
@@ -424,6 +465,167 @@ public class DatabaseStore {
     }
 
     return toOrderResponse(order);
+  }
+
+  @Transactional
+  public OrderResponse cancelOrder(String userId, String orderId, String reason) {
+    ensureUser(userId);
+    OrderEntity order = ownedOrder(userId, orderId);
+    if ("PENDING_PAYMENT".equals(order.getStatus())) {
+      rollbackStock(orderId);
+      LocalDateTime now = LocalDateTime.now();
+      order.setStatus("PAYMENT_CLOSED");
+      order.setStatusText("支付关闭");
+      order.setPaymentStatus("CLOSED");
+      order.setClosedAt(now);
+      order.setCancelReason(reason);
+      order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "PAYMENT_CLOSED", reason));
+      orderMapper.updateById(order);
+      paymentMapper.update(null, Wrappers.<PaymentEntity>lambdaUpdate()
+          .eq(PaymentEntity::getOrderId, orderId)
+          .in(PaymentEntity::getStatus, List.of("CREATED", "PAYING"))
+          .set(PaymentEntity::getStatus, "CLOSED")
+          .set(PaymentEntity::getClosedAt, now));
+      return toOrderResponse(order);
+    }
+    if (!List.of("PREPARING").contains(order.getStatus())) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    rollbackStock(orderId);
+    order.setStatus("CANCELED");
+    order.setStatusText("已取消");
+    order.setCancelReason(reason);
+    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "CANCELED", reason));
+    orderMapper.updateById(order);
+    return toOrderResponse(order);
+  }
+
+  @Transactional
+  public OrderResponse requestRefund(String userId, String orderId, String reason) {
+    ensureUser(userId);
+    OrderEntity order = ownedOrder(userId, orderId);
+    if (!List.of("PAID", "PREPARING", "DELIVERING", "COMPLETED").contains(order.getStatus())) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    order.setStatus("REFUND_REQUESTED");
+    order.setStatusText("退款申请中");
+    order.setRefundReason(reason);
+    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "REFUND_REQUESTED", reason));
+    orderMapper.updateById(order);
+    return toOrderResponse(order);
+  }
+
+  public Map<String, Object> dashboardSummary() {
+    BigDecimal sales = orderMapper.selectList(Wrappers.<OrderEntity>lambdaQuery())
+        .stream()
+        .filter(order -> List.of("PAID", "PREPARING", "DELIVERING", "COMPLETED").contains(order.getStatus()))
+        .map(OrderEntity::getTotalAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<String, Object> summary = new LinkedHashMap<>();
+    summary.put("orderCount", orderMapper.selectCount(null));
+    summary.put("salesAmount", sales);
+    summary.put("productCount", productMapper.selectCount(null));
+    summary.put("userCount", userMapper.selectCount(null));
+    return summary;
+  }
+
+  public List<MerchantEntity> adminMerchants() {
+    return merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery().orderByAsc(MerchantEntity::getSortOrder));
+  }
+
+  public MerchantEntity saveMerchant(MerchantEntity merchant) {
+    if (merchant.getId() == null || merchant.getId().isBlank()) {
+      merchant.setId(uid("m"));
+      merchantMapper.insert(merchant);
+    } else if (merchantMapper.selectById(merchant.getId()) == null) {
+      merchantMapper.insert(merchant);
+    } else {
+      merchantMapper.updateById(merchant);
+    }
+    return merchantMapper.selectById(merchant.getId());
+  }
+
+  public List<ProductAdminResponse> adminProducts() {
+    Map<String, MerchantEntity> merchants = merchantMapper.selectList(null).stream()
+        .collect(Collectors.toMap(MerchantEntity::getId, Function.identity()));
+    return productMapper.selectList(Wrappers.<ProductEntity>lambdaQuery().orderByAsc(ProductEntity::getSortOrder))
+        .stream()
+        .map(product -> toProductAdminResponse(product, merchants.get(product.getMerchantId())))
+        .toList();
+  }
+
+  public ProductEntity saveProduct(ProductEntity product) {
+    MerchantEntity merchant = merchantMapper.selectById(product.getMerchantId());
+    if (merchant == null) {
+      throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND);
+    }
+    if (product.getId() == null || product.getId().isBlank()) {
+      product.setId(uid("p"));
+      productMapper.insert(product);
+    } else if (productMapper.selectById(product.getId()) == null) {
+      productMapper.insert(product);
+    } else {
+      productMapper.updateById(product);
+    }
+    return productMapper.selectById(product.getId());
+  }
+
+  public List<OrderResponse> adminOrders() {
+    return orderMapper.selectList(Wrappers.<OrderEntity>lambdaQuery()
+            .orderByDesc(OrderEntity::getCreatedAt))
+        .stream()
+        .map(this::toOrderResponse)
+        .toList();
+  }
+
+  @Transactional
+  public OrderResponse adminUpdateOrderStatus(String orderId, String nextStatus, String reason) {
+    OrderEntity order = Optional.ofNullable(orderMapper.selectById(orderId))
+        .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ORDER_STATUS));
+    if (!canMove(order.getStatus(), nextStatus)) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    if ("REFUNDED".equals(nextStatus)) {
+      rollbackStock(orderId);
+    }
+    order.setStatus(nextStatus);
+    order.setStatusText(statusText(nextStatus));
+    if ("CANCELED".equals(nextStatus)) {
+      order.setCancelReason(reason);
+    }
+    if ("REFUNDED".equals(nextStatus)) {
+      order.setRefundReason(reason);
+    }
+    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), nextStatus, reason));
+    orderMapper.updateById(order);
+    return toOrderResponse(order);
+  }
+
+  public List<UserRecord> adminUsers() {
+    return userMapper.selectList(Wrappers.<UserEntity>lambdaQuery()
+            .orderByDesc(UserEntity::getLastLoginAt))
+        .stream()
+        .map(this::toUserRecord)
+        .toList();
+  }
+
+  public UserRecord updateUserStatus(String userId, String status) {
+    UserEntity user = userMapper.selectById(userId);
+    if (user == null) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    user.setStatus(status);
+    userMapper.updateById(user);
+    return toUserRecord(user);
+  }
+
+  public List<AuditLogEntity> auditLogs(String actorId, String action, LocalDateTime from, LocalDateTime to) {
+    return auditLogMapper.selectList(Wrappers.<AuditLogEntity>lambdaQuery()
+        .like(actorId != null && !actorId.isBlank(), AuditLogEntity::getActorId, actorId)
+        .like(action != null && !action.isBlank(), AuditLogEntity::getAction, action)
+        .ge(from != null, AuditLogEntity::getCreatedAt, from)
+        .le(to != null, AuditLogEntity::getCreatedAt, to)
+        .orderByDesc(AuditLogEntity::getCreatedAt));
   }
 
   private boolean merchantMatches(
@@ -446,6 +648,9 @@ public class DatabaseStore {
 
   private OrderLineResponse toOrderLine(CheckoutItemRequest request) {
     ProductEntity product = product(request.productId());
+    if (product.getStock() < request.quantity()) {
+      throw new BusinessException(ErrorCode.PRODUCT_STOCK_LOW);
+    }
     MerchantEntity merchant = merchantMapper.selectById(product.getMerchantId());
     BigDecimal amount = product.getPrice().multiply(BigDecimal.valueOf(request.quantity()));
     return new OrderLineResponse(
@@ -491,6 +696,11 @@ public class DatabaseStore {
         order.getTotalAmount(),
         order.getStatus(),
         order.getStatusText(),
+        order.getPaymentStatus(),
+        order.getPaymentChannel(),
+        toInstantString(order.getPaidAt()),
+        toInstantString(order.getPaymentExpireAt()),
+        toInstantString(order.getClosedAt()),
         items,
         address
     );
@@ -604,6 +814,25 @@ public class DatabaseStore {
     );
   }
 
+  private ProductAdminResponse toProductAdminResponse(ProductEntity product, MerchantEntity merchant) {
+    return new ProductAdminResponse(
+        product.getId(),
+        product.getMerchantId(),
+        merchant == null ? "" : merchant.getName(),
+        product.getCategoryId(),
+        product.getName(),
+        product.getSales(),
+        product.getPrice(),
+        product.getOriginalPrice(),
+        product.getImageText(),
+        product.getUnit(),
+        product.getDescription(),
+        product.getStock(),
+        product.getStatus(),
+        product.getSortOrder()
+    );
+  }
+
   private List<AddressEntity> addresses(String userId) {
     return addressMapper.selectList(Wrappers.<AddressEntity>lambdaQuery()
         .eq(AddressEntity::getUserId, userId)
@@ -625,17 +854,87 @@ public class DatabaseStore {
   }
 
   private void ensureUser(String userId) {
-    if (userMapper.selectById(userId) == null) {
+    UserEntity user = userMapper.selectById(userId);
+    if (user == null || !"ACTIVE".equals(user.getStatus())) {
       throw new BusinessException(ErrorCode.UNAUTHORIZED);
     }
   }
 
   private ProductEntity product(String productId) {
     ProductEntity product = productMapper.selectById(productId);
-    if (product == null) {
+    if (product == null || !"ON_SHELF".equals(product.getStatus())) {
       throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
     }
     return product;
+  }
+
+  private OrderEntity ownedOrder(String userId, String orderId) {
+    OrderEntity order = orderMapper.selectOne(Wrappers.<OrderEntity>lambdaQuery()
+        .eq(OrderEntity::getUserId, userId)
+        .eq(OrderEntity::getId, orderId)
+        .last("limit 1"));
+    if (order == null) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    return order;
+  }
+
+  private void rollbackStock(String orderId) {
+    for (OrderItemEntity item : orderItemMapper.selectList(Wrappers.<OrderItemEntity>lambdaQuery()
+        .eq(OrderItemEntity::getOrderId, orderId))) {
+      ProductEntity product = productMapper.selectById(item.getProductId());
+      if (product != null) {
+        product.setStock(product.getStock() + item.getQuantity());
+        productMapper.updateById(product);
+      }
+    }
+  }
+
+  private boolean canMove(String current, String next) {
+    return switch (current) {
+      case "PAID" -> List.of("PREPARING", "REFUND_REQUESTED").contains(next);
+      case "PREPARING" -> List.of("DELIVERING", "REFUND_REQUESTED").contains(next);
+      case "DELIVERING" -> List.of("COMPLETED", "REFUND_REQUESTED").contains(next);
+      case "COMPLETED" -> "REFUND_REQUESTED".equals(next);
+      case "REFUND_REQUESTED" -> "REFUNDED".equals(next);
+      default -> false;
+    };
+  }
+
+  private String statusText(String status) {
+    return switch (status) {
+      case "PAID" -> "支付成功";
+      case "PENDING_PAYMENT" -> "待支付";
+      case "PAYMENT_CLOSED" -> "支付关闭";
+      case "PREPARING" -> "备货中";
+      case "DELIVERING" -> "配送中";
+      case "COMPLETED" -> "已完成";
+      case "CANCELED" -> "已取消";
+      case "REFUND_REQUESTED" -> "退款申请中";
+      case "REFUNDED" -> "已退款";
+      default -> status;
+    };
+  }
+
+  private String statusHistory(String status, String reason) {
+    return appendStatusHistory("[]", status, reason);
+  }
+
+  private String appendStatusHistory(String existing, String status, String reason) {
+    try {
+      List<Map<String, String>> history = existing == null || existing.isBlank()
+          ? new java.util.ArrayList<>()
+          : new java.util.ArrayList<>(objectMapper.readValue(existing, new TypeReference<List<Map<String, String>>>() {}));
+      Map<String, String> item = new LinkedHashMap<>();
+      item.put("status", status);
+      item.put("text", statusText(status));
+      item.put("reason", reason == null ? "" : reason);
+      item.put("changedAt", LocalDateTime.now().toString());
+      history.add(item);
+      return objectMapper.writeValueAsString(history);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Failed to append order status history", exception);
+    }
   }
 
   private List<String> tags(String tagsJson) {
@@ -653,6 +952,9 @@ public class DatabaseStore {
         user.getPassword(),
         user.getNickname(),
         user.getMemberLevel(),
+        user.getRole(),
+        user.getStatus(),
+        user.getLastLoginAt() == null ? null : toInstantString(user.getLastLoginAt()),
         new UserProfileStatsResponse(
             user.getCouponCount(),
             user.getFavoriteCount(),
@@ -663,7 +965,7 @@ public class DatabaseStore {
   }
 
   private String toInstantString(LocalDateTime dateTime) {
-    return dateTime.atZone(ZoneId.systemDefault()).toInstant().toString();
+    return dateTime == null ? null : dateTime.atZone(ZoneId.systemDefault()).toInstant().toString();
   }
 
   private String randomDigits() {
@@ -680,6 +982,9 @@ public class DatabaseStore {
       String password,
       String nickname,
       String memberLevel,
+      String role,
+      String status,
+      String lastLoginAt,
       UserProfileStatsResponse profileStats
   ) {}
 }

@@ -3,6 +3,8 @@ export interface AuthUser {
   mobile: string
   nickname: string
   memberLevel: string
+  role?: 'CUSTOMER' | 'ADMIN' | 'OPERATOR'
+  status?: 'ACTIVE' | 'DISABLED'
 }
 
 export interface UserSession {
@@ -124,7 +126,20 @@ export interface OrderLine extends CartItem {
   amount: number
 }
 
-export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED'
+export type OrderStatus =
+  | 'PENDING_PAYMENT'
+  | 'PAYMENT_CLOSED'
+  | 'PAID'
+  | 'PREPARING'
+  | 'DELIVERING'
+  | 'COMPLETED'
+  | 'CANCELED'
+  | 'REFUND_REQUESTED'
+  | 'REFUNDED'
+
+export type PaymentChannel = 'ALIPAY_QR' | 'WECHAT_QR'
+
+export type PaymentStatus = 'PENDING' | 'PAYING' | 'PAID' | 'CLOSED' | 'EXPIRED'
 
 export interface Order {
   id: string
@@ -133,8 +148,37 @@ export interface Order {
   totalAmount: number
   status: OrderStatus
   statusText: string
+  paymentStatus: PaymentStatus
+  paymentChannel?: PaymentChannel | null
+  paidAt?: string | null
+  paymentExpireAt?: string | null
+  closedAt?: string | null
   items: OrderLine[]
   address: Address
+}
+
+export interface PaymentPrepayResponse {
+  paymentId: string
+  orderId: string
+  channel: PaymentChannel
+  status: PaymentStatus
+  amount: number
+  outTradeNo: string
+  transactionId?: string | null
+  qrContent: string
+  expireAt: string
+}
+
+export interface PaymentStatusResponse {
+  paymentId: string
+  orderId: string
+  channel: PaymentChannel
+  status: PaymentStatus
+  orderStatus: OrderStatus
+  transactionId?: string | null
+  expireAt?: string | null
+  paidAt?: string | null
+  closedAt?: string | null
 }
 
 export interface UserProfileStats {

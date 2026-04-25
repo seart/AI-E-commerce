@@ -30,6 +30,10 @@ public final class OrderDtos {
       List<CheckoutItemRequest> items
   ) {}
 
+  public record OrderActionRequest(
+      String reason
+  ) {}
+
   public record OrderLineResponse(
       String id,
       String merchantId,
@@ -55,6 +59,11 @@ public final class OrderDtos {
       BigDecimal totalAmount,
       String status,
       String statusText,
+      String paymentStatus,
+      String paymentChannel,
+      String paidAt,
+      String paymentExpireAt,
+      String closedAt,
       List<OrderLineResponse> items,
       AddressResponse address
   ) {}

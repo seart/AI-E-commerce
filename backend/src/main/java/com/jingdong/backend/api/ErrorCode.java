@@ -9,7 +9,16 @@ public enum ErrorCode {
   PRODUCT_NOT_FOUND(4004, "商品不存在或已下架", HttpStatus.NOT_FOUND),
   ADDRESS_NOT_FOUND(4005, "地址不存在", HttpStatus.NOT_FOUND),
   INVALID_ADDRESS(4006, "请选择有效的收货地址", HttpStatus.BAD_REQUEST),
+  INVALID_ORDER_STATUS(4007, "订单状态不允许执行该操作", HttpStatus.BAD_REQUEST),
+  PRODUCT_STOCK_LOW(4008, "商品库存不足", HttpStatus.BAD_REQUEST),
+  USER_DISABLED(4009, "账号已被禁用", HttpStatus.FORBIDDEN),
+  PAYMENT_CHANNEL_NOT_CONFIGURED(4011, "支付渠道未配置", HttpStatus.BAD_REQUEST),
+  PAYMENT_NOT_FOUND(4012, "支付单不存在", HttpStatus.NOT_FOUND),
+  PAYMENT_EXPIRED(4013, "支付单已过期", HttpStatus.BAD_REQUEST),
+  PAYMENT_GATEWAY_FAILED(4014, "支付网关调用失败", HttpStatus.BAD_REQUEST),
   UNAUTHORIZED(4010, "未登录或登录已过期", HttpStatus.UNAUTHORIZED),
+  FORBIDDEN(4030, "无权访问该资源", HttpStatus.FORBIDDEN),
+  RATE_LIMITED(4290, "操作过于频繁，请稍后再试", HttpStatus.TOO_MANY_REQUESTS),
   MERCHANT_NOT_FOUND(4040, "商家不存在或已下线", HttpStatus.NOT_FOUND),
   INTERNAL_ERROR(5000, "系统异常", HttpStatus.INTERNAL_SERVER_ERROR);
 

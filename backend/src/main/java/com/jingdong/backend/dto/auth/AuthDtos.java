@@ -33,7 +33,9 @@ public final class AuthDtos {
       String id,
       String mobile,
       String nickname,
-      String memberLevel
+      String memberLevel,
+      String role,
+      String status
   ) {}
 
   public record UserSessionResponse(

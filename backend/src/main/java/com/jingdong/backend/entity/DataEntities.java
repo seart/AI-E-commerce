@@ -16,10 +16,13 @@ public final class DataEntities {
     private String password;
     private String nickname;
     private String memberLevel;
+    private String role;
+    private String status;
     private Integer couponCount;
     private Integer favoriteCount;
     private Integer points;
     private Integer growthValue;
+    private LocalDateTime lastLoginAt;
 
     public String getId() {
       return id;
@@ -61,6 +64,22 @@ public final class DataEntities {
       this.memberLevel = memberLevel;
     }
 
+    public String getRole() {
+      return role;
+    }
+
+    public void setRole(String role) {
+      this.role = role;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
     public Integer getCouponCount() {
       return couponCount;
     }
@@ -91,6 +110,14 @@ public final class DataEntities {
 
     public void setGrowthValue(Integer growthValue) {
       this.growthValue = growthValue;
+    }
+
+    public LocalDateTime getLastLoginAt() {
+      return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+      this.lastLoginAt = lastLoginAt;
     }
   }
 
@@ -200,6 +227,7 @@ public final class DataEntities {
     private BigDecimal rating;
     private String logoBackground;
     private String logoText;
+    private String status;
     private Integer sortOrder;
 
     public String getId() {
@@ -298,6 +326,14 @@ public final class DataEntities {
       this.logoText = logoText;
     }
 
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
     public Integer getSortOrder() {
       return sortOrder;
     }
@@ -371,6 +407,7 @@ public final class DataEntities {
     private String unit;
     private String description;
     private Integer stock;
+    private String status;
     private Integer sortOrder;
 
     public String getId() {
@@ -459,6 +496,14 @@ public final class DataEntities {
 
     public void setStock(Integer stock) {
       this.stock = stock;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
     }
 
     public Integer getSortOrder() {
@@ -651,6 +696,14 @@ public final class DataEntities {
     private BigDecimal totalAmount;
     private String status;
     private String statusText;
+    private String paymentStatus;
+    private String paymentChannel;
+    private LocalDateTime paidAt;
+    private LocalDateTime paymentExpireAt;
+    private LocalDateTime closedAt;
+    private String statusHistoryJson;
+    private String cancelReason;
+    private String refundReason;
     private LocalDateTime createdAt;
 
     public String getId() {
@@ -771,6 +824,70 @@ public final class DataEntities {
 
     public void setStatusText(String statusText) {
       this.statusText = statusText;
+    }
+
+    public String getPaymentStatus() {
+      return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+      this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentChannel() {
+      return paymentChannel;
+    }
+
+    public void setPaymentChannel(String paymentChannel) {
+      this.paymentChannel = paymentChannel;
+    }
+
+    public LocalDateTime getPaidAt() {
+      return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+      this.paidAt = paidAt;
+    }
+
+    public LocalDateTime getPaymentExpireAt() {
+      return paymentExpireAt;
+    }
+
+    public void setPaymentExpireAt(LocalDateTime paymentExpireAt) {
+      this.paymentExpireAt = paymentExpireAt;
+    }
+
+    public LocalDateTime getClosedAt() {
+      return closedAt;
+    }
+
+    public void setClosedAt(LocalDateTime closedAt) {
+      this.closedAt = closedAt;
+    }
+
+    public String getStatusHistoryJson() {
+      return statusHistoryJson;
+    }
+
+    public void setStatusHistoryJson(String statusHistoryJson) {
+      this.statusHistoryJson = statusHistoryJson;
+    }
+
+    public String getCancelReason() {
+      return cancelReason;
+    }
+
+    public void setCancelReason(String cancelReason) {
+      this.cancelReason = cancelReason;
+    }
+
+    public String getRefundReason() {
+      return refundReason;
+    }
+
+    public void setRefundReason(String refundReason) {
+      this.refundReason = refundReason;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -937,6 +1054,259 @@ public final class DataEntities {
 
     public void setAmount(BigDecimal amount) {
       this.amount = amount;
+    }
+  }
+
+  @TableName("payments")
+  public static class PaymentEntity {
+    @TableId
+    private String id;
+    private String orderId;
+    private String userId;
+    private String channel;
+    private String status;
+    private BigDecimal amount;
+    private String outTradeNo;
+    private String transactionId;
+    private String qrCode;
+    private String payUrl;
+    private String gatewayOrderNo;
+    private String notifyPayload;
+    private String requestId;
+    private LocalDateTime expireAt;
+    private LocalDateTime paidAt;
+    private LocalDateTime closedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getOrderId() {
+      return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+      this.orderId = orderId;
+    }
+
+    public String getUserId() {
+      return userId;
+    }
+
+    public void setUserId(String userId) {
+      this.userId = userId;
+    }
+
+    public String getChannel() {
+      return channel;
+    }
+
+    public void setChannel(String channel) {
+      this.channel = channel;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
+    public BigDecimal getAmount() {
+      return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+      this.amount = amount;
+    }
+
+    public String getOutTradeNo() {
+      return outTradeNo;
+    }
+
+    public void setOutTradeNo(String outTradeNo) {
+      this.outTradeNo = outTradeNo;
+    }
+
+    public String getTransactionId() {
+      return transactionId;
+    }
+
+    public void setTransactionId(String transactionId) {
+      this.transactionId = transactionId;
+    }
+
+    public String getQrCode() {
+      return qrCode;
+    }
+
+    public void setQrCode(String qrCode) {
+      this.qrCode = qrCode;
+    }
+
+    public String getPayUrl() {
+      return payUrl;
+    }
+
+    public void setPayUrl(String payUrl) {
+      this.payUrl = payUrl;
+    }
+
+    public String getGatewayOrderNo() {
+      return gatewayOrderNo;
+    }
+
+    public void setGatewayOrderNo(String gatewayOrderNo) {
+      this.gatewayOrderNo = gatewayOrderNo;
+    }
+
+    public String getNotifyPayload() {
+      return notifyPayload;
+    }
+
+    public void setNotifyPayload(String notifyPayload) {
+      this.notifyPayload = notifyPayload;
+    }
+
+    public String getRequestId() {
+      return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+      this.requestId = requestId;
+    }
+
+    public LocalDateTime getExpireAt() {
+      return expireAt;
+    }
+
+    public void setExpireAt(LocalDateTime expireAt) {
+      this.expireAt = expireAt;
+    }
+
+    public LocalDateTime getPaidAt() {
+      return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+      this.paidAt = paidAt;
+    }
+
+    public LocalDateTime getClosedAt() {
+      return closedAt;
+    }
+
+    public void setClosedAt(LocalDateTime closedAt) {
+      this.closedAt = closedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
+  @TableName("audit_logs")
+  public static class AuditLogEntity {
+    @TableId
+    private String id;
+    private String actorId;
+    private String actorRole;
+    private String action;
+    private String targetType;
+    private String targetId;
+    private String detail;
+    private String requestId;
+    private LocalDateTime createdAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getActorId() {
+      return actorId;
+    }
+
+    public void setActorId(String actorId) {
+      this.actorId = actorId;
+    }
+
+    public String getActorRole() {
+      return actorRole;
+    }
+
+    public void setActorRole(String actorRole) {
+      this.actorRole = actorRole;
+    }
+
+    public String getAction() {
+      return action;
+    }
+
+    public void setAction(String action) {
+      this.action = action;
+    }
+
+    public String getTargetType() {
+      return targetType;
+    }
+
+    public void setTargetType(String targetType) {
+      this.targetType = targetType;
+    }
+
+    public String getTargetId() {
+      return targetId;
+    }
+
+    public void setTargetId(String targetId) {
+      this.targetId = targetId;
+    }
+
+    public String getDetail() {
+      return detail;
+    }
+
+    public void setDetail(String detail) {
+      this.detail = detail;
+    }
+
+    public String getRequestId() {
+      return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+      this.requestId = requestId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
     }
   }
 }

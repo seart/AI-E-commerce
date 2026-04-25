@@ -4,10 +4,13 @@ CREATE TABLE IF NOT EXISTS users (
   password VARCHAR(100) NOT NULL,
   nickname VARCHAR(80) NOT NULL,
   member_level VARCHAR(40) NOT NULL,
+  role VARCHAR(40) NOT NULL DEFAULT 'CUSTOMER',
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
   coupon_count INT NOT NULL DEFAULT 0,
   favorite_count INT NOT NULL DEFAULT 0,
   points INT NOT NULL DEFAULT 0,
   growth_value INT NOT NULL DEFAULT 0,
+  last_login_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -40,6 +43,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   rating DECIMAL(3,1) NOT NULL DEFAULT 5.0,
   logo_background VARCHAR(255) NOT NULL,
   logo_text VARCHAR(40) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -68,6 +72,7 @@ CREATE TABLE IF NOT EXISTS products (
   unit VARCHAR(40) NOT NULL,
   description VARCHAR(255) NOT NULL,
   stock INT NOT NULL DEFAULT 0,
+  status VARCHAR(40) NOT NULL DEFAULT 'ON_SHELF',
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -131,11 +136,46 @@ CREATE TABLE IF NOT EXISTS orders (
   total_amount DECIMAL(10,2) NOT NULL,
   status VARCHAR(40) NOT NULL,
   status_text VARCHAR(40) NOT NULL,
+  payment_status VARCHAR(40) NOT NULL DEFAULT 'PENDING',
+  payment_channel VARCHAR(40) NULL,
+  paid_at TIMESTAMP NULL,
+  payment_expire_at TIMESTAMP NULL,
+  closed_at TIMESTAMP NULL,
+  status_history_json TEXT NULL,
+  cancel_reason VARCHAR(255) NULL,
+  refund_reason VARCHAR(255) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE,
   INDEX idx_orders_user_id_created_at (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payments (
+  id VARCHAR(64) PRIMARY KEY,
+  order_id VARCHAR(64) NOT NULL,
+  user_id VARCHAR(64) NOT NULL,
+  channel VARCHAR(40) NOT NULL,
+  status VARCHAR(40) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  out_trade_no VARCHAR(80) NOT NULL UNIQUE,
+  transaction_id VARCHAR(120) NULL,
+  qr_code VARCHAR(1024) NULL,
+  pay_url VARCHAR(1024) NULL,
+  gateway_order_no VARCHAR(120) NULL,
+  notify_payload TEXT NULL,
+  request_id VARCHAR(80) NULL,
+  expire_at TIMESTAMP NOT NULL,
+  paid_at TIMESTAMP NULL,
+  closed_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_payments_order
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON DELETE CASCADE,
+  INDEX idx_payments_order_id (order_id),
+  INDEX idx_payments_user_id (user_id),
+  INDEX idx_payments_status_expire_at (status, expire_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -160,4 +200,19 @@ CREATE TABLE IF NOT EXISTS order_items (
     FOREIGN KEY (order_id) REFERENCES orders(id)
     ON DELETE CASCADE,
   INDEX idx_order_items_order_id (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id VARCHAR(64) PRIMARY KEY,
+  actor_id VARCHAR(64) NULL,
+  actor_role VARCHAR(40) NULL,
+  action VARCHAR(120) NOT NULL,
+  target_type VARCHAR(80) NOT NULL,
+  target_id VARCHAR(80) NULL,
+  detail VARCHAR(1000) NULL,
+  request_id VARCHAR(80) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_logs_created_at (created_at),
+  INDEX idx_audit_logs_actor_id (actor_id),
+  INDEX idx_audit_logs_action (action)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

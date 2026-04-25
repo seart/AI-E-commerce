@@ -57,6 +57,46 @@ class AuthLogoutIntegrationTests {
     assertThat(afterLogout.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
+  @Test
+  void loginAfterLogoutIssuesUsableFreshToken() {
+    ResponseEntity<Map> firstLoginResponse = restTemplate.postForEntity(
+        "/auth/login",
+        Map.of("mobile", "13800000000", "password", "123456"),
+        Map.class
+    );
+    assertThat(firstLoginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    String firstToken = (String) data(firstLoginResponse).get("accessToken");
+    HttpHeaders firstHeaders = new HttpHeaders();
+    firstHeaders.setBearerAuth(firstToken);
+    ResponseEntity<Map> logoutResponse = restTemplate.exchange(
+        "/auth/logout",
+        HttpMethod.POST,
+        new HttpEntity<>(firstHeaders),
+        Map.class
+    );
+    assertThat(logoutResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    ResponseEntity<Map> secondLoginResponse = restTemplate.postForEntity(
+        "/auth/login",
+        Map.of("mobile", "13800000000", "password", "123456"),
+        Map.class
+    );
+    assertThat(secondLoginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    String secondToken = (String) data(secondLoginResponse).get("accessToken");
+    assertThat(secondToken).isNotEqualTo(firstToken);
+    HttpHeaders secondHeaders = new HttpHeaders();
+    secondHeaders.setBearerAuth(secondToken);
+    ResponseEntity<Map> profileResponse = restTemplate.exchange(
+        "/profile",
+        HttpMethod.GET,
+        new HttpEntity<>(secondHeaders),
+        Map.class
+    );
+    assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
   @SuppressWarnings("unchecked")
   private Map<String, Object> data(ResponseEntity<Map> response) {
     return (Map<String, Object>) response.getBody().get("data");

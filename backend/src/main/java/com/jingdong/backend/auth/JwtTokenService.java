@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -104,6 +105,7 @@ public class JwtTokenService {
       payload.put("typ", tokenType);
       payload.put("iat", now.getEpochSecond());
       payload.put("exp", now.plusSeconds(minutes * 60).getEpochSecond());
+      payload.put("jti", UUID.randomUUID().toString());
 
       String encodedHeader = encodeJson(header);
       String encodedPayload = encodeJson(payload);

@@ -20,6 +20,9 @@ import type {
   MerchantDetail,
   Order,
   OrderLine,
+  PaymentChannel,
+  PaymentPrepayResponse,
+  PaymentStatusResponse,
   Product,
   RegisterPayload,
   UserProfile,
@@ -41,6 +44,7 @@ interface MockDatabase {
   addressesByUserId: Record<string, Address[]>
   cartsByUserId: Record<string, CartItem[]>
   ordersByUserId: Record<string, Order[]>
+  paymentsById: Record<string, PaymentPrepayResponse & { settleAfter: string }>
 }
 
 function uid(prefix: string) {
@@ -92,11 +96,14 @@ function createSeedDatabase(): MockDatabase {
     ordersByUserId: {
       [demoUserId]: [],
     },
+    paymentsById: {},
   }
 }
 
 function readDatabase() {
-  return loadJson<MockDatabase>(STORAGE_KEYS.mockDatabase, createSeedDatabase())
+  const database = loadJson<MockDatabase>(STORAGE_KEYS.mockDatabase, createSeedDatabase())
+  database.paymentsById = database.paymentsById ?? {}
+  return database
 }
 
 function writeDatabase(database: MockDatabase) {
@@ -479,8 +486,13 @@ export const mockServer = {
       orderNo: `JD${Date.now()}`,
       createdAt: nowIso(),
       totalAmount: Number(lines.reduce((sum, item) => sum + item.amount, 0).toFixed(2)),
-      status: 'PAID',
-      statusText: '支付成功',
+      status: 'PENDING_PAYMENT',
+      statusText: '待支付',
+      paymentStatus: 'PENDING',
+      paymentChannel: null,
+      paidAt: null,
+      paymentExpireAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      closedAt: null,
       items: lines,
       address,
     }
@@ -488,6 +500,107 @@ export const mockServer = {
     const checkedIds = new Set(items.map((item) => item.productId))
     database.ordersByUserId[user.id] = [order, ...getOrders(database, user.id)]
     database.cartsByUserId[user.id] = cartItems.filter((item) => !checkedIds.has(item.id))
+    writeDatabase(database)
+
+    return wait(order)
+  },
+
+  async prepay(orderId: string, channel: PaymentChannel) {
+    const database = readDatabase()
+    const user = getCurrentUserRecord(database)
+    const order = getOrders(database, user.id).find((item) => item.id === orderId)
+
+    if (!order || order.status !== 'PENDING_PAYMENT') {
+      throw new Error('订单状态不允许发起支付')
+    }
+
+    const payment: PaymentPrepayResponse & { settleAfter: string } = {
+      paymentId: uid('pay'),
+      orderId,
+      channel,
+      status: 'PAYING',
+      amount: order.totalAmount,
+      outTradeNo: `MOCK${Date.now()}`,
+      transactionId: null,
+      qrContent: `mock-pay://${channel}/${order.orderNo}`,
+      expireAt: order.paymentExpireAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      settleAfter: new Date(Date.now() + 2500).toISOString(),
+    }
+
+    order.paymentStatus = 'PAYING'
+    order.paymentChannel = channel
+    database.paymentsById[payment.paymentId] = payment
+    writeDatabase(database)
+
+    return wait(payment)
+  },
+
+  async getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
+    const database = readDatabase()
+    const user = getCurrentUserRecord(database)
+    const payment = database.paymentsById[paymentId]
+
+    if (!payment) {
+      throw new Error('支付单不存在')
+    }
+
+    const order = getOrders(database, user.id).find((item) => item.id === payment.orderId)
+    if (!order) {
+      throw new Error('订单不存在')
+    }
+
+    if (payment.status === 'PAYING' && Date.now() >= new Date(payment.settleAfter).getTime()) {
+      payment.status = 'PAID'
+      payment.transactionId = `mock_tx_${Date.now()}`
+      order.status = 'PAID'
+      order.statusText = '支付成功'
+      order.paymentStatus = 'PAID'
+      order.paidAt = nowIso()
+      writeDatabase(database)
+    }
+
+    return wait({
+      paymentId: payment.paymentId,
+      orderId: payment.orderId,
+      channel: payment.channel,
+      status: payment.status,
+      orderStatus: order.status,
+      transactionId: payment.transactionId,
+      expireAt: payment.expireAt,
+      paidAt: order.paidAt,
+      closedAt: order.closedAt,
+    })
+  },
+
+  async cancelOrder(orderId: string, _reason: string) {
+    const database = readDatabase()
+    const user = getCurrentUserRecord(database)
+    const order = getOrders(database, user.id).find((item) => item.id === orderId)
+
+    if (!order || order.status !== 'PENDING_PAYMENT') {
+      throw new Error('订单状态不允许取消')
+    }
+
+    order.status = 'PAYMENT_CLOSED'
+    order.statusText = '支付关闭'
+    order.paymentStatus = 'CLOSED'
+    order.closedAt = nowIso()
+    writeDatabase(database)
+
+    return wait(order)
+  },
+
+  async requestRefund(orderId: string, _reason: string) {
+    const database = readDatabase()
+    const user = getCurrentUserRecord(database)
+    const order = getOrders(database, user.id).find((item) => item.id === orderId)
+
+    if (!order || !['PAID', 'PREPARING', 'DELIVERING', 'COMPLETED'].includes(order.status)) {
+      throw new Error('订单状态不允许申请退款')
+    }
+
+    order.status = 'REFUND_REQUESTED'
+    order.statusText = '退款申请中'
     writeDatabase(database)
 
     return wait(order)

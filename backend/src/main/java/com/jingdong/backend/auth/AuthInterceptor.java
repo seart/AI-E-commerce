@@ -3,8 +3,11 @@ package com.jingdong.backend.auth;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jingdong.backend.api.ApiResponse;
 import com.jingdong.backend.api.ErrorCode;
+import com.jingdong.backend.store.DatabaseStore;
+import com.jingdong.backend.store.DatabaseStore.UserRecord;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Optional;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -15,15 +18,18 @@ import java.nio.charset.StandardCharsets;
 public class AuthInterceptor implements HandlerInterceptor {
     private final JwtTokenService jwtTokenService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final DatabaseStore store;
     private final ObjectMapper objectMapper;
 
     public AuthInterceptor(
             JwtTokenService jwtTokenService,
             TokenBlacklistService tokenBlacklistService,
+            DatabaseStore store,
             ObjectMapper objectMapper
     ) {
         this.jwtTokenService = jwtTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.store = store;
         this.objectMapper = objectMapper;
     }
 
@@ -49,7 +55,13 @@ public class AuthInterceptor implements HandlerInterceptor {
                 writeUnauthorized(response);
                 return false;
             }
-            UserContext.setUserId(jwtTokenService.parseUserId(token));
+            String userId = jwtTokenService.parseUserId(token);
+            Optional<UserRecord> user = store.findUserById(userId);
+            if (user.isEmpty() || !"ACTIVE".equals(user.get().status())) {
+                writeUnauthorized(response);
+                return false;
+            }
+            UserContext.set(userId, user.get().role());
             return true;
         } catch (Exception exception) {
             UserContext.clear();

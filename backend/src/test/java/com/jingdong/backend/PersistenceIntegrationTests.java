@@ -49,6 +49,10 @@ class PersistenceIntegrationTests {
   @Test
   void cartAndOrderWriteToMysql() {
     jdbcTemplate.update(
+        "delete from payments where order_id in (select id from orders where user_id = ?)",
+        DEMO_USER_ID
+    );
+    jdbcTemplate.update(
         "delete from order_items where order_id in (select id from orders where user_id = ?)",
         DEMO_USER_ID
     );
@@ -74,7 +78,7 @@ class PersistenceIntegrationTests {
     );
 
     Integer orderCount = jdbcTemplate.queryForObject(
-        "select count(*) from orders where id = ? and status = 'PAID'",
+        "select count(*) from orders where id = ? and status = 'PENDING_PAYMENT'",
         Integer.class,
         order.id()
     );
