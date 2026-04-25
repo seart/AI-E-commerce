@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class TokenBlacklistService {
   private static final String KEY_PREFIX = "auth:blacklist:";
+  private static final String JTI_KEY_PREFIX = "auth:blacklist:jti:";
 
   private final StringRedisTemplate redisTemplate;
 
@@ -26,12 +27,28 @@ public class TokenBlacklistService {
     redisTemplate.opsForValue().set(key(token), "1", ttl);
   }
 
+  public void blacklistJti(String jti, Instant expiresAt) {
+    Duration ttl = Duration.between(Instant.now(), expiresAt);
+    if (ttl.isNegative() || ttl.isZero()) {
+      return;
+    }
+    redisTemplate.opsForValue().set(jtiKey(jti), "1", ttl);
+  }
+
   public boolean isBlacklisted(String token) {
     return Boolean.TRUE.equals(redisTemplate.hasKey(key(token)));
   }
 
+  public boolean isJtiBlacklisted(String jti) {
+    return Boolean.TRUE.equals(redisTemplate.hasKey(jtiKey(jti)));
+  }
+
   private String key(String token) {
     return KEY_PREFIX + fingerprint(token);
+  }
+
+  private String jtiKey(String jti) {
+    return JTI_KEY_PREFIX + jti;
   }
 
   private String fingerprint(String token) {

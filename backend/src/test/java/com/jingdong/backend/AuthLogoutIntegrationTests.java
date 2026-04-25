@@ -2,11 +2,14 @@ package com.jingdong.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -17,6 +20,18 @@ import org.springframework.http.ResponseEntity;
 class AuthLogoutIntegrationTests {
   @Autowired
   private TestRestTemplate restTemplate;
+
+  @Autowired
+  private StringRedisTemplate redisTemplate;
+
+  @BeforeEach
+  void resetRateLimits() {
+    redisTemplate.delete(List.of(
+        "rate:login:13800000000",
+        "rate:login-ip:127.0.0.1",
+        "rate:login-ip:0:0:0:0:0:0:0:1"
+    ));
+  }
 
   @Test
   void logoutBlacklistsCurrentAccessToken() {
@@ -95,6 +110,67 @@ class AuthLogoutIntegrationTests {
         Map.class
     );
     assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
+  void refreshTokenIssuesNewAccessToken() {
+    ResponseEntity<Map> loginResponse = restTemplate.postForEntity(
+        "/auth/login",
+        Map.of("mobile", "13800000000", "password", "123456"),
+        Map.class
+    );
+    assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    String refreshToken = (String) data(loginResponse).get("refreshToken");
+    ResponseEntity<Map> refreshResponse = restTemplate.postForEntity(
+        "/auth/refresh",
+        Map.of("refreshToken", refreshToken),
+        Map.class
+    );
+    assertThat(refreshResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    String accessToken = (String) data(refreshResponse).get("accessToken");
+    HttpHeaders headers = new HttpHeaders();
+    headers.setBearerAuth(accessToken);
+    ResponseEntity<Map> profileResponse = restTemplate.exchange(
+        "/profile",
+        HttpMethod.GET,
+        new HttpEntity<>(headers),
+        Map.class
+    );
+    assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
+  void refreshTokenCannotAccessBusinessApis() {
+    ResponseEntity<Map> loginResponse = restTemplate.postForEntity(
+        "/auth/login",
+        Map.of("mobile", "13800000000", "password", "123456"),
+        Map.class
+    );
+    assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    String refreshToken = (String) data(loginResponse).get("refreshToken");
+    HttpHeaders headers = new HttpHeaders();
+    headers.setBearerAuth(refreshToken);
+    ResponseEntity<Map> profileResponse = restTemplate.exchange(
+        "/profile",
+        HttpMethod.GET,
+        new HttpEntity<>(headers),
+        Map.class
+    );
+    assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  void profileRequiresAuthentication() {
+    ResponseEntity<Map> profileResponse = restTemplate.exchange(
+        "/profile",
+        HttpMethod.GET,
+        HttpEntity.EMPTY,
+        Map.class
+    );
+    assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
   }
 
   @SuppressWarnings("unchecked")

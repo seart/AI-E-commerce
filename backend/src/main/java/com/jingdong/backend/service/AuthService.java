@@ -2,10 +2,12 @@ package com.jingdong.backend.service;
 
 import com.jingdong.backend.api.ErrorCode;
 import com.jingdong.backend.auth.JwtTokenService;
+import com.jingdong.backend.auth.JwtTokenService.TokenClaims;
 import com.jingdong.backend.auth.PasswordHasher;
 import com.jingdong.backend.auth.TokenBlacklistService;
 import com.jingdong.backend.dto.auth.AuthDtos.AuthUserResponse;
 import com.jingdong.backend.dto.auth.AuthDtos.LoginRequest;
+import com.jingdong.backend.dto.auth.AuthDtos.RefreshTokenRequest;
 import com.jingdong.backend.dto.auth.AuthDtos.RegisterRequest;
 import com.jingdong.backend.dto.auth.AuthDtos.SuccessResponse;
 import com.jingdong.backend.dto.auth.AuthDtos.UserSessionResponse;
@@ -41,7 +43,12 @@ public class AuthService {
   }
 
   public UserSessionResponse login(LoginRequest request) {
+    return login(request, "unknown");
+  }
+
+  public UserSessionResponse login(LoginRequest request, String clientIp) {
     rateLimiterService.check("login:" + request.mobile(), 10, Duration.ofMinutes(1));
+    rateLimiterService.check("login-ip:" + clientIp, 50, Duration.ofMinutes(1));
     UserRecord user = store.findUserByMobile(request.mobile())
         .filter(record -> passwordHasher.matches(request.password(), record.password()))
         .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
@@ -68,10 +75,29 @@ public class AuthService {
   public SuccessResponse logout(String authorization) {
     String token = bearerToken(authorization);
     if (token != null) {
-      tokenBlacklistService.blacklist(token, jwtTokenService.expiresAt(token));
+      TokenClaims claims = jwtTokenService.parseClaims(token);
+      tokenBlacklistService.blacklist(token, claims.expiresAt());
+      tokenBlacklistService.blacklistJti(claims.jti(), claims.expiresAt());
     }
     auditLogService.record("AUTH_LOGOUT", "USER", null, "用户退出登录");
     return new SuccessResponse(true);
+  }
+
+  public UserSessionResponse refresh(RefreshTokenRequest request) {
+    if (tokenBlacklistService.isBlacklisted(request.refreshToken())) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    TokenClaims claims = jwtTokenService.parseRefreshToken(request.refreshToken());
+    if (tokenBlacklistService.isJtiBlacklisted(claims.jti())) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    UserRecord user = store.findUserById(claims.userId())
+        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+    if (!"ACTIVE".equals(user.status())) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    auditLogService.record("AUTH_REFRESH", "USER", user.id(), "刷新访问令牌");
+    return session(user);
   }
 
   private String bearerToken(String authorization) {
@@ -84,8 +110,8 @@ public class AuthService {
 
   private UserSessionResponse session(UserRecord user) {
     return new UserSessionResponse(
-        jwtTokenService.createAccessToken(user.id()),
-        jwtTokenService.createRefreshToken(user.id()),
+        jwtTokenService.createAccessToken(user.id(), user.role()),
+        jwtTokenService.createRefreshToken(user.id(), user.role()),
         jwtTokenService.accessTokenExpiresAt().toString(),
         new AuthUserResponse(
             user.id(),

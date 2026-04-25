@@ -63,6 +63,9 @@ class ThirdStageIntegrationTests {
     redisTemplate.delete(List.of(
         "rate:login:13800000000",
         "rate:login:13900000000",
+        "rate:login-ip:127.0.0.1",
+        "rate:login-ip:0:0:0:0:0:0:0:1",
+        "rate:login-ip:unknown",
         "rate:order:" + DEMO_USER_ID
     ));
   }
@@ -164,6 +167,29 @@ class ThirdStageIntegrationTests {
         .isInstanceOf(BusinessException.class)
         .satisfies(error -> assertThat(((BusinessException) error).errorCode())
             .isEqualTo(ErrorCode.RATE_LIMITED));
+  }
+
+  @Test
+  void disabledUserCannotReuseOldAccessToken() {
+    jdbcTemplate.update("update users set status = 'ACTIVE' where id = ?", DEMO_USER_ID);
+    String token = login("13800000000", "123456");
+
+    try {
+      jdbcTemplate.update("update users set status = 'DISABLED' where id = ?", DEMO_USER_ID);
+
+      HttpHeaders headers = new HttpHeaders();
+      headers.setBearerAuth(token);
+      ResponseEntity<Map> profileResponse = restTemplate.exchange(
+          "/profile",
+          HttpMethod.GET,
+          new HttpEntity<>(headers),
+          Map.class
+      );
+      assertThat(profileResponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+      assertThat(profileResponse.getBody().get("code")).isEqualTo(ErrorCode.UNAUTHORIZED.code());
+    } finally {
+      jdbcTemplate.update("update users set status = 'ACTIVE' where id = ?", DEMO_USER_ID);
+    }
   }
 
   private OrderResponse createDemoOrder(int quantity) {

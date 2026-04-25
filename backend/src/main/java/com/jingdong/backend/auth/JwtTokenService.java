@@ -39,11 +39,19 @@ public class JwtTokenService {
   }
 
   public String createAccessToken(String userId) {
-    return createToken(userId, expirationMinutes, "access");
+    return createAccessToken(userId, "CUSTOMER");
+  }
+
+  public String createAccessToken(String userId, String role) {
+    return createToken(userId, role, expirationMinutes, "access");
   }
 
   public String createRefreshToken(String userId) {
-    return createToken(userId, refreshExpirationMinutes, "refresh");
+    return createRefreshToken(userId, "CUSTOMER");
+  }
+
+  public String createRefreshToken(String userId, String role) {
+    return createToken(userId, role, refreshExpirationMinutes, "refresh");
   }
 
   public Instant accessTokenExpiresAt() {
@@ -58,7 +66,23 @@ public class JwtTokenService {
     return parseClaims(token).expiresAt();
   }
 
-  private Claims parseClaims(String token) {
+  public TokenClaims parseAccessToken(String token) {
+    TokenClaims claims = parseClaims(token);
+    if (!"access".equals(claims.type())) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    return claims;
+  }
+
+  public TokenClaims parseRefreshToken(String token) {
+    TokenClaims claims = parseClaims(token);
+    if (!"refresh".equals(claims.type())) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+    return claims;
+  }
+
+  public TokenClaims parseClaims(String token) {
     try {
       String[] parts = token.split("\\.");
       if (parts.length != 3) {
@@ -85,7 +109,22 @@ public class JwtTokenService {
         throw new BusinessException(ErrorCode.UNAUTHORIZED);
       }
 
-      return new Claims(userId, Instant.ofEpochSecond(expiresAt));
+      Object typeValue = payload.get("typ");
+      if (!(typeValue instanceof String type) || type.isBlank()) {
+        throw new BusinessException(ErrorCode.UNAUTHORIZED);
+      }
+
+      Object jtiValue = payload.get("jti");
+      if (!(jtiValue instanceof String jti) || jti.isBlank()) {
+        throw new BusinessException(ErrorCode.UNAUTHORIZED);
+      }
+
+      Object roleValue = payload.get("role");
+      String role = roleValue instanceof String roleText && !roleText.isBlank()
+          ? roleText
+          : "CUSTOMER";
+
+      return new TokenClaims(userId, role, type, jti, Instant.ofEpochSecond(expiresAt));
     } catch (BusinessException exception) {
       throw exception;
     } catch (Exception exception) {
@@ -93,7 +132,7 @@ public class JwtTokenService {
     }
   }
 
-  private String createToken(String userId, long minutes, String tokenType) {
+  private String createToken(String userId, String role, long minutes, String tokenType) {
     try {
       Map<String, Object> header = new LinkedHashMap<>();
       header.put("alg", "HS256");
@@ -103,6 +142,7 @@ public class JwtTokenService {
       Map<String, Object> payload = new LinkedHashMap<>();
       payload.put("sub", userId);
       payload.put("typ", tokenType);
+      payload.put("role", role);
       payload.put("iat", now.getEpochSecond());
       payload.put("exp", now.plusSeconds(minutes * 60).getEpochSecond());
       payload.put("jti", UUID.randomUUID().toString());
@@ -140,5 +180,11 @@ public class JwtTokenService {
     return result == 0;
   }
 
-  private record Claims(String userId, Instant expiresAt) {}
+  public record TokenClaims(
+      String userId,
+      String role,
+      String type,
+      String jti,
+      Instant expiresAt
+  ) {}
 }

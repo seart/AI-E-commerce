@@ -45,5 +45,10 @@ public final class AuthDtos {
       AuthUserResponse user
   ) {}
 
+  public record RefreshTokenRequest(
+      @NotBlank(message = "刷新令牌不能为空")
+      String refreshToken
+  ) {}
+
   public record SuccessResponse(boolean success) {}
 }

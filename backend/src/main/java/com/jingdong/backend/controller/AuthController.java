@@ -2,10 +2,12 @@ package com.jingdong.backend.controller;
 
 import com.jingdong.backend.api.ApiResponse;
 import com.jingdong.backend.dto.auth.AuthDtos.LoginRequest;
+import com.jingdong.backend.dto.auth.AuthDtos.RefreshTokenRequest;
 import com.jingdong.backend.dto.auth.AuthDtos.RegisterRequest;
 import com.jingdong.backend.dto.auth.AuthDtos.SuccessResponse;
 import com.jingdong.backend.dto.auth.AuthDtos.UserSessionResponse;
 import com.jingdong.backend.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -24,8 +26,11 @@ public class AuthController {
   }
 
   @PostMapping("/login")
-  public ApiResponse<UserSessionResponse> login(@Valid @RequestBody LoginRequest request) {
-    return ApiResponse.success(authService.login(request));
+  public ApiResponse<UserSessionResponse> login(
+      @Valid @RequestBody LoginRequest request,
+      HttpServletRequest servletRequest
+  ) {
+    return ApiResponse.success(authService.login(request, clientIp(servletRequest)));
   }
 
   @PostMapping("/register")
@@ -38,5 +43,22 @@ public class AuthController {
       @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization
   ) {
     return ApiResponse.success(authService.logout(authorization));
+  }
+
+  @PostMapping("/refresh")
+  public ApiResponse<UserSessionResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+    return ApiResponse.success(authService.refresh(request));
+  }
+
+  private String clientIp(HttpServletRequest request) {
+    String forwardedFor = request.getHeader("X-Forwarded-For");
+    if (forwardedFor != null && !forwardedFor.isBlank()) {
+      return forwardedFor.split(",")[0].trim();
+    }
+    String realIp = request.getHeader("X-Real-IP");
+    if (realIp != null && !realIp.isBlank()) {
+      return realIp.trim();
+    }
+    return request.getRemoteAddr();
   }
 }
