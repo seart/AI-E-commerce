@@ -24,6 +24,9 @@ backend/target/
 .vscode/
 *.iml
 
+# Local git worktrees
+.worktrees/
+
 # Java
 *.class
 
