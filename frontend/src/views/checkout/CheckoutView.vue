@@ -36,7 +36,11 @@
         <div class="product-item" v-for="item in group.items" :key="item.id">
           <div class="product-img">{{ item.imageText }}</div>
           <div class="product-info">
-            <div class="name">{{ item.name }}</div>
+            <div class="name">{{ item.productName || item.name }}</div>
+            <div class="snapshot" v-if="item.brandName || item.specText">
+              <span v-if="item.brandName">{{ item.brandName }}</span>
+              <span v-if="item.specText">{{ item.specText }}</span>
+            </div>
             <div class="price-qty">
               <span class="price">¥{{ item.price.toFixed(2) }} x {{ item.quantity }}</span>
               <span class="amount">¥{{ (item.price * item.quantity).toFixed(2) }}</span>
@@ -206,7 +210,8 @@ async function processPayment() {
     const order = await orderStore.createOrder(
       defaultAddress.value.id,
       checkedItems.value.map((item) => ({
-        productId: item.id,
+        productId: item.productId ?? item.id,
+        skuId: item.skuId ?? item.productId ?? item.id,
         quantity: item.quantity,
       })),
     )
@@ -407,6 +412,15 @@ function finishShopping() {
   font-size: 14px;
   color: #333;
   line-height: 1.4;
+}
+
+.snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+  color: #8c8f99;
+  font-size: 12px;
 }
 
 .price-qty {

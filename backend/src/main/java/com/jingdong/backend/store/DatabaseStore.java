@@ -14,14 +14,15 @@ import com.jingdong.backend.dto.home.HomeDtos.HomeResponse;
 import com.jingdong.backend.dto.merchant.MerchantDtos.MerchantCategoryResponse;
 import com.jingdong.backend.dto.merchant.MerchantDtos.MerchantDetailResponse;
 import com.jingdong.backend.dto.merchant.MerchantDtos.MerchantResponse;
-import com.jingdong.backend.dto.merchant.MerchantDtos.ProductResponse;
 import com.jingdong.backend.dto.order.OrderDtos.CheckoutItemRequest;
 import com.jingdong.backend.dto.order.OrderDtos.OrderLineResponse;
 import com.jingdong.backend.dto.order.OrderDtos.OrderResponse;
+import com.jingdong.backend.dto.product.ProductDtos.ProductCardResponse;
 import com.jingdong.backend.dto.profile.ProfileDtos.UserProfileStatsResponse;
 import com.jingdong.backend.entity.DataEntities.AddressEntity;
 import com.jingdong.backend.entity.DataEntities.AuditLogEntity;
 import com.jingdong.backend.entity.DataEntities.BannerEntity;
+import com.jingdong.backend.entity.DataEntities.BrandEntity;
 import com.jingdong.backend.entity.DataEntities.CartItemEntity;
 import com.jingdong.backend.entity.DataEntities.CategoryEntity;
 import com.jingdong.backend.entity.DataEntities.MerchantCategoryEntity;
@@ -30,11 +31,13 @@ import com.jingdong.backend.entity.DataEntities.OrderEntity;
 import com.jingdong.backend.entity.DataEntities.OrderItemEntity;
 import com.jingdong.backend.entity.DataEntities.PaymentEntity;
 import com.jingdong.backend.entity.DataEntities.ProductEntity;
+import com.jingdong.backend.entity.DataEntities.ProductSpuEntity;
 import com.jingdong.backend.entity.DataEntities.UserEntity;
 import com.jingdong.backend.exception.BusinessException;
 import com.jingdong.backend.mapper.AddressMapper;
 import com.jingdong.backend.mapper.AuditLogMapper;
 import com.jingdong.backend.mapper.BannerMapper;
+import com.jingdong.backend.mapper.BrandMapper;
 import com.jingdong.backend.mapper.CartItemMapper;
 import com.jingdong.backend.mapper.CategoryMapper;
 import com.jingdong.backend.mapper.MerchantCategoryMapper;
@@ -43,6 +46,7 @@ import com.jingdong.backend.mapper.OrderItemMapper;
 import com.jingdong.backend.mapper.OrderMapper;
 import com.jingdong.backend.mapper.PaymentMapper;
 import com.jingdong.backend.mapper.ProductMapper;
+import com.jingdong.backend.mapper.ProductSpuMapper;
 import com.jingdong.backend.mapper.UserMapper;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -65,6 +69,7 @@ public class DatabaseStore {
   private static final DateTimeFormatter ORDER_FORMATTER =
       DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT);
   private static final TypeReference<List<String>> TAGS_TYPE = new TypeReference<>() {};
+  private static final TypeReference<List<Map<String, String>>> SKU_SPECS_TYPE = new TypeReference<>() {};
 
   private final ObjectMapper objectMapper;
   private final UserMapper userMapper;
@@ -72,6 +77,8 @@ public class DatabaseStore {
   private final CategoryMapper categoryMapper;
   private final MerchantMapper merchantMapper;
   private final MerchantCategoryMapper merchantCategoryMapper;
+  private final BrandMapper brandMapper;
+  private final ProductSpuMapper productSpuMapper;
   private final ProductMapper productMapper;
   private final AddressMapper addressMapper;
   private final CartItemMapper cartItemMapper;
@@ -87,6 +94,8 @@ public class DatabaseStore {
       CategoryMapper categoryMapper,
       MerchantMapper merchantMapper,
       MerchantCategoryMapper merchantCategoryMapper,
+      BrandMapper brandMapper,
+      ProductSpuMapper productSpuMapper,
       ProductMapper productMapper,
       AddressMapper addressMapper,
       CartItemMapper cartItemMapper,
@@ -101,6 +110,8 @@ public class DatabaseStore {
     this.categoryMapper = categoryMapper;
     this.merchantMapper = merchantMapper;
     this.merchantCategoryMapper = merchantCategoryMapper;
+    this.brandMapper = brandMapper;
+    this.productSpuMapper = productSpuMapper;
     this.productMapper = productMapper;
     this.addressMapper = addressMapper;
     this.cartItemMapper = cartItemMapper;
@@ -170,6 +181,7 @@ public class DatabaseStore {
         .map(this::toCategoryResponse)
         .toList();
     List<MerchantResponse> merchants = merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery()
+            .eq(MerchantEntity::getStatus, "ACTIVE")
             .orderByAsc(MerchantEntity::getSortOrder))
         .stream()
         .map(this::toMerchantResponse)
@@ -187,8 +199,11 @@ public class DatabaseStore {
     }
 
     Map<String, List<ProductEntity>> productsByMerchantId = productMapper.selectList(
-            Wrappers.<ProductEntity>lambdaQuery().orderByAsc(ProductEntity::getSortOrder))
+            Wrappers.<ProductEntity>lambdaQuery()
+                .eq(ProductEntity::getStatus, "ON_SHELF")
+                .orderByAsc(ProductEntity::getSortOrder))
         .stream()
+        .filter(this::productVisibleForCustomer)
         .collect(Collectors.groupingBy(ProductEntity::getMerchantId));
 
     return merchants.stream()
@@ -203,12 +218,21 @@ public class DatabaseStore {
       throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND);
     }
 
-    List<ProductResponse> products = productMapper.selectList(Wrappers.<ProductEntity>lambdaQuery()
+    List<ProductEntity> visibleSkus = productMapper.selectList(Wrappers.<ProductEntity>lambdaQuery()
             .eq(ProductEntity::getMerchantId, merchantId)
             .eq(ProductEntity::getStatus, "ON_SHELF")
             .orderByAsc(ProductEntity::getSortOrder))
         .stream()
-        .map(product -> toProductResponse(product, merchant))
+        .filter(this::productVisibleForCustomer)
+        .toList();
+    Map<String, List<ProductEntity>> skusBySpuId = visibleSkus.stream()
+        .collect(Collectors.groupingBy(
+            product -> product.getSpuId() == null || product.getSpuId().isBlank() ? product.getId() : product.getSpuId(),
+            LinkedHashMap::new,
+            Collectors.toList()
+        ));
+    List<ProductCardResponse> products = skusBySpuId.values().stream()
+        .map(skus -> toProductCardResponse(merchant, skus))
         .toList();
     return new MerchantDetailResponse(toMerchantResponse(merchant), products);
   }
@@ -226,7 +250,10 @@ public class DatabaseStore {
   @Transactional
   public List<CartItemResponse> addCartItem(String userId, String productId) {
     ensureUser(userId);
-    product(productId);
+    ProductEntity product = product(productId);
+    if (product.getStock() == null || product.getStock() <= 0) {
+      throw new BusinessException(ErrorCode.PRODUCT_STOCK_LOW);
+    }
     CartItemEntity existing = findCartItem(userId, productId);
     if (existing == null) {
       CartItemEntity cartItem = new CartItemEntity();
@@ -450,13 +477,13 @@ public class DatabaseStore {
     }
 
     for (CheckoutItemRequest item : items) {
-      ProductEntity product = product(item.productId());
+      ProductEntity product = product(item.purchasableId());
       product.setStock(product.getStock() - item.quantity());
       productMapper.updateById(product);
     }
 
     List<String> purchasedProductIds = items.stream()
-        .map(CheckoutItemRequest::productId)
+        .map(CheckoutItemRequest::purchasableId)
         .toList();
     if (!purchasedProductIds.isEmpty()) {
       cartItemMapper.delete(Wrappers.<CartItemEntity>lambdaQuery()
@@ -647,7 +674,7 @@ public class DatabaseStore {
   }
 
   private OrderLineResponse toOrderLine(CheckoutItemRequest request) {
-    ProductEntity product = product(request.productId());
+    ProductEntity product = product(request.purchasableId());
     if (product.getStock() < request.quantity()) {
       throw new BusinessException(ErrorCode.PRODUCT_STOCK_LOW);
     }
@@ -727,12 +754,25 @@ public class DatabaseStore {
   }
 
   private CartItemResponse toCartItemResponse(CartItemEntity cartItem) {
-    ProductEntity product = product(cartItem.getProductId());
+    ProductEntity product = productSnapshot(cartItem.getProductId());
     MerchantEntity merchant = merchantMapper.selectById(product.getMerchantId());
+    ProductSpuEntity spu = product.getSpuId() == null ? null : productSpuMapper.selectById(product.getSpuId());
+    BrandEntity brand = product.getBrandId() == null ? null : brandMapper.selectById(product.getBrandId());
+    List<Map<String, String>> specs = skuSpecs(product.getSpecsJson());
     return new CartItemResponse(
         product.getId(),
+        product.getId(),
+        product.getId(),
+        product.getSpuId(),
+        brand == null ? "" : brand.getName(),
+        spu == null ? product.getName() : spu.getName(),
+        specs.stream()
+            .map(item -> item.getOrDefault("optionName", ""))
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.joining(" / ")),
+        product.getStatus(),
         product.getMerchantId(),
-        merchant.getName(),
+        merchant == null ? "" : merchant.getName(),
         product.getCategoryId(),
         product.getName(),
         product.getSales(),
@@ -797,20 +837,51 @@ public class DatabaseStore {
     );
   }
 
-  private ProductResponse toProductResponse(ProductEntity product, MerchantEntity merchant) {
-    return new ProductResponse(
-        product.getId(),
-        product.getMerchantId(),
+  private ProductCardResponse toProductCardResponse(MerchantEntity merchant, List<ProductEntity> skus) {
+    ProductEntity first = skus.get(0);
+    ProductSpuEntity spu = first.getSpuId() == null || first.getSpuId().isBlank()
+        ? null
+        : productSpuMapper.selectById(first.getSpuId());
+    BrandEntity brand = first.getBrandId() == null || first.getBrandId().isBlank()
+        ? null
+        : brandMapper.selectById(first.getBrandId());
+    ProductEntity lowestPriceSku = skus.stream()
+        .min(Comparator.comparing(ProductEntity::getPrice))
+        .orElse(first);
+    BigDecimal minPrice = skus.stream().map(ProductEntity::getPrice).min(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
+    BigDecimal maxPrice = skus.stream().map(ProductEntity::getPrice).max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
+    int stock = skus.stream().map(ProductEntity::getStock).filter(java.util.Objects::nonNull).reduce(0, Integer::sum);
+    int sales = skus.stream().map(ProductEntity::getSales).filter(java.util.Objects::nonNull).reduce(0, Integer::sum);
+    boolean singleSku = skus.size() == 1;
+    String spuId = spu == null ? first.getId() : spu.getId();
+    String name = spu == null ? first.getName() : spu.getName();
+    String subtitle = spu == null ? first.getDescription() : spu.getSubtitle();
+    String mainImage = spu == null ? first.getMainImage() : spu.getMainImage();
+    String description = spu == null ? first.getDescription() : spu.getDetail();
+    String imageText = first.getImageText() == null || first.getImageText().isBlank()
+        ? mainImage
+        : first.getImageText();
+    return new ProductCardResponse(
+        spuId,
+        spuId,
+        singleSku ? lowestPriceSku.getId() : null,
+        first.getMerchantId(),
         merchant.getName(),
-        product.getCategoryId(),
-        product.getName(),
-        product.getSales(),
-        product.getPrice(),
-        product.getOriginalPrice(),
-        product.getImageText(),
-        product.getUnit(),
-        product.getDescription(),
-        product.getStock()
+        first.getCategoryId(),
+        first.getBrandId(),
+        brand == null ? "" : brand.getName(),
+        name,
+        subtitle,
+        sales,
+        minPrice,
+        maxPrice,
+        lowestPriceSku.getOriginalPrice(),
+        imageText,
+        mainImage,
+        lowestPriceSku.getUnit(),
+        description,
+        stock,
+        singleSku
     );
   }
 
@@ -861,11 +932,37 @@ public class DatabaseStore {
   }
 
   private ProductEntity product(String productId) {
+    if (productId == null || productId.isBlank()) {
+      throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+    }
     ProductEntity product = productMapper.selectById(productId);
-    if (product == null || !"ON_SHELF".equals(product.getStatus())) {
+    if (product == null || !productVisibleForCustomer(product)) {
       throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
     }
     return product;
+  }
+
+  private ProductEntity productSnapshot(String productId) {
+    ProductEntity product = productMapper.selectById(productId);
+    if (product == null) {
+      throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+    }
+    return product;
+  }
+
+  private boolean productVisibleForCustomer(ProductEntity product) {
+    if (product == null || !"ON_SHELF".equals(product.getStatus())) {
+      return false;
+    }
+    MerchantEntity merchant = merchantMapper.selectById(product.getMerchantId());
+    if (merchant == null || !"ACTIVE".equals(merchant.getStatus())) {
+      return false;
+    }
+    if (product.getSpuId() == null || product.getSpuId().isBlank()) {
+      return true;
+    }
+    ProductSpuEntity spu = productSpuMapper.selectById(product.getSpuId());
+    return spu != null && "ON_SHELF".equals(spu.getStatus());
   }
 
   private OrderEntity ownedOrder(String userId, String orderId) {
@@ -942,6 +1039,17 @@ public class DatabaseStore {
       return objectMapper.readValue(tagsJson, TAGS_TYPE);
     } catch (Exception exception) {
       throw new IllegalStateException("Invalid merchant tags JSON", exception);
+    }
+  }
+
+  private List<Map<String, String>> skuSpecs(String specsJson) {
+    try {
+      if (specsJson == null || specsJson.isBlank()) {
+        return List.of();
+      }
+      return objectMapper.readValue(specsJson, SKU_SPECS_TYPE);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Invalid SKU specs JSON", exception);
     }
   }
 

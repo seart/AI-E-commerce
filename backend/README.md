@@ -46,18 +46,38 @@ Authorization: Bearer <accessToken>
 - 使用 MyBatis-Plus 接入 MySQL，不使用 JPA，不使用 Flyway。
 - MySQL 本机连接：`localhost:33061/jingdong`，账号：`jingdong / 123456`。
 - Redis 本机连接：`localhost:63791`，密码：`12345`。
-- 已实现轻量 JWT 登录、注册、登出，不引入 Spring Security。
+- 已实现 Spring Security + 轻量 JWT/RBAC 登录态，支持登录、注册、登出、访问令牌刷新与统一 `401/403` JSON 响应。
 - Redis 用于 logout 后的 JWT 黑名单、登录限流、下单限流，不缓存首页或商家详情页。
 - 已实现首页、商家详情、商家搜索、购物车、地址、订单、个人中心接口。
+- 已实现商品中心第一阶段后端能力：类目、品牌、规格组/规格值、SPU/SKU 数据模型，后台商品中心接口，用户端商品搜索和商品详情接口。
+- 旧 `/admin/products` 单商品接口继续兼容，内部会转换为单 SPU + 单 SKU；购物车和下单继续兼容 `productId`，同时支持 `skuId`。
 - 下单接口会先创建 `PENDING_PAYMENT` 待支付订单并扣减库存，支付成功回调后进入 `PAID` / `支付成功`。
-- 已接入 `cn.felord:payment-spring-boot-starter:1.0.20.RELEASE`，支持支付宝扫码和微信 Native 扫码预下单。
+- 已接入 `cn.felord:payment-spring-boot-starter:1.0.20.RELEASE`，支付网关通过配置启用；本地无真实支付凭证时建议设置 `PAYMENT_REAL_GATEWAY_ENABLED=false` 使用测试替身或模拟链路。
 - 支付超时关单通过 RocketMQ 延迟消息触发；未配置 RocketMQ 地址时可先保持 `PAYMENT_ROCKETMQ_ENABLED=false` 做本地测试。
 - 已实现订单状态闭环：`PAID -> PREPARING -> DELIVERING -> COMPLETED`，并支持待支付取消、退款申请、退款确认。
 - 已实现后台 `/admin/**` 接口，支持管理员/运营访问，普通用户返回 `403`。
 - 已实现 PBKDF2 密码哈希；历史明文密码会在首次成功登录后自动升级。
 - 已实现审计日志、请求 ID、结构化请求日志与健康检查 `/api/health`。
-- 用户、商家、商品、购物车、地址、订单均已落 MySQL。
+- 用户、商家、商品/SPU/SKU、购物车、地址、订单、支付单和审计日志均已落 MySQL。
 - 表结构和初始化数据使用 Spring Boot `schema.sql` / `data.sql` 轻量初始化；存量库字段补齐由 `DatabaseMigrationRunner` 在启动时完成，不使用 Flyway。
+
+## 商品中心接口概览
+
+用户端商品接口：
+
+- `GET /api/products/search?keyword=&merchantId=&categoryId=&brandId=`：搜索可售商品，只返回启用商家、上架 SPU、上架 SKU。
+- `GET /api/products/{productId}`：商品详情，`productId` 可传 SPU ID 或 SKU ID。
+
+后台商品中心接口：
+
+- `GET/POST/PUT/PATCH /api/admin/categories...`
+- `GET/POST/PUT/PATCH /api/admin/brands...`
+- `GET/POST/PUT/PATCH /api/admin/spec-groups...`
+- `GET/POST/PUT/PATCH /api/admin/spec-options...`
+- `GET/POST/PUT/PATCH /api/admin/product-spus...`
+- `POST/PUT/PATCH /api/admin/product-spus/{spuId}/skus...`
+
+这些后台接口继续由 Spring Security 限制为 `ADMIN` / `OPERATOR` 访问，并写入审计日志。
 
 ## 独立后台项目
 

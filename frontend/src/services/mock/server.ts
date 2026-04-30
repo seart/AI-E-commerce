@@ -24,6 +24,9 @@ import type {
   PaymentPrepayResponse,
   PaymentStatusResponse,
   Product,
+  ProductCard,
+  ProductDetail,
+  ProductSku,
   RegisterPayload,
   UserProfile,
   UserProfileStats,
@@ -152,6 +155,62 @@ function findProductOrThrow(productId: string) {
   return product
 }
 
+function toProductCard(product: Product): ProductCard {
+  return {
+    id: product.id,
+    spuId: product.id,
+    skuId: product.id,
+    merchantId: product.merchantId,
+    merchantName: product.merchantName,
+    categoryId: product.categoryId,
+    brandId: 'brand_mock',
+    brandName: '京东精选',
+    name: product.name,
+    subtitle: product.description,
+    sales: product.sales,
+    minPrice: product.price,
+    maxPrice: product.price,
+    originalPrice: product.originalPrice,
+    imageText: product.imageText,
+    mainImage: product.imageText,
+    unit: product.unit,
+    description: product.description,
+    stock: product.stock,
+    singleSku: true,
+  }
+}
+
+function toProductSku(product: Product): ProductSku {
+  return {
+    skuId: product.id,
+    productId: product.id,
+    spuId: product.id,
+    skuCode: product.id,
+    specs: [],
+    specText: '默认规格',
+    price: product.price,
+    originalPrice: product.originalPrice ?? product.price,
+    unit: product.unit,
+    stock: product.stock,
+    status: 'ON_SHELF',
+  }
+}
+
+function toCartItem(product: Product, quantity = 1, checked = true): CartItem {
+  return {
+    ...product,
+    skuId: product.id,
+    productId: product.id,
+    spuId: product.id,
+    brandName: '京东精选',
+    productName: product.name,
+    specText: '默认规格',
+    status: 'ON_SHELF',
+    quantity,
+    checked,
+  }
+}
+
 function getCart(database: MockDatabase, userId: string) {
   return database.cartsByUserId[userId] ?? []
 }
@@ -270,13 +329,47 @@ export const mockServer = {
     return wait(merchants)
   },
 
+  async searchProducts(keyword: string, filters: { merchantId?: string; categoryId?: string; brandId?: string } = {}) {
+    const normalized = keyword.trim().toLowerCase()
+    const products = mockProducts
+      .filter((product) => !filters.merchantId || product.merchantId === filters.merchantId)
+      .filter((product) => !filters.categoryId || product.categoryId === filters.categoryId)
+      .filter((product) => {
+        if (!normalized) {
+          return true
+        }
+        return [
+          product.name,
+          product.description,
+          product.merchantName,
+          product.imageText,
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalized)
+      })
+      .map(toProductCard)
+
+    return wait(products)
+  },
+
   async getMerchantDetail(merchantId: string): Promise<MerchantDetail> {
     const merchant = findMerchantOrThrow(merchantId)
-    const products = mockProducts.filter((item) => item.merchantId === merchantId)
+    const products = mockProducts.filter((item) => item.merchantId === merchantId).map(toProductCard)
 
     return wait({
       merchant,
       products,
+    })
+  },
+
+  async getProductDetail(productId: string): Promise<ProductDetail> {
+    const product = findProductOrThrow(productId)
+    return wait({
+      product: toProductCard(product),
+      skus: [toProductSku(product)],
+      detailImages: [`${product.imageText} 详情图`, '冷链履约', '企业采购保障'],
+      detail: product.description,
     })
   },
 
@@ -296,11 +389,7 @@ export const mockServer = {
       existing.quantity += 1
     } else {
       const product = findProductOrThrow(productId)
-      cartItems.push({
-        ...product,
-        quantity: 1,
-        checked: true,
-      })
+      cartItems.push(toCartItem(product))
     }
 
     const nextCartItems = [...cartItems]
@@ -470,9 +559,13 @@ export const mockServer = {
     }
 
     const cartItems = getCart(database, user.id)
-    const lines = items.map(({ productId, quantity }) => {
+    const lines = items.map(({ productId, skuId, quantity }) => {
+      const purchasableId = skuId || productId
+      if (!purchasableId) {
+        throw new Error('请选择有效商品')
+      }
       const source =
-        cartItems.find((item) => item.id === productId) ?? findProductOrThrow(productId)
+        cartItems.find((item) => item.id === purchasableId) ?? findProductOrThrow(purchasableId)
 
       return toOrderLine({
         ...source,
@@ -497,7 +590,7 @@ export const mockServer = {
       address,
     }
 
-    const checkedIds = new Set(items.map((item) => item.productId))
+    const checkedIds = new Set(items.map((item) => item.skuId || item.productId).filter(Boolean))
     database.ordersByUserId[user.id] = [order, ...getOrders(database, user.id)]
     database.cartsByUserId[user.id] = cartItems.filter((item) => !checkedIds.has(item.id))
     writeDatabase(database)

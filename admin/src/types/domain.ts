@@ -63,6 +63,149 @@ export interface Product {
   sortOrder: number
 }
 
+export type CommonStatus = 'ACTIVE' | 'DISABLED'
+export type ProductStatus = 'DRAFT' | 'ON_SHELF' | 'OFF_SHELF'
+export type CategoryType = 'CHANNEL' | 'PRODUCT'
+
+export interface Category {
+  id: string
+  name: string
+  icon: string
+  parentId?: string | null
+  level: number
+  type: CategoryType
+  status: CommonStatus
+  sortOrder: number
+}
+
+export interface CategoryUpsertRequest {
+  id?: string
+  name: string
+  icon?: string
+  parentId?: string | null
+  level?: number
+  type?: CategoryType
+  status?: CommonStatus
+  sortOrder?: number
+}
+
+export interface Brand {
+  id: string
+  name: string
+  logo: string
+  description: string
+  status: CommonStatus
+  sortOrder: number
+}
+
+export interface BrandUpsertRequest {
+  id?: string
+  name: string
+  logo?: string
+  description?: string
+  status?: CommonStatus
+  sortOrder?: number
+}
+
+export interface SpecOption {
+  id: string
+  groupId: string
+  name: string
+  status: CommonStatus
+  sortOrder: number
+}
+
+export interface SpecGroup {
+  id: string
+  name: string
+  status: CommonStatus
+  sortOrder: number
+  options: SpecOption[]
+}
+
+export interface SpecGroupUpsertRequest {
+  id?: string
+  name: string
+  status?: CommonStatus
+  sortOrder?: number
+}
+
+export interface SpecOptionUpsertRequest {
+  id?: string
+  name: string
+  status?: CommonStatus
+  sortOrder?: number
+}
+
+export interface SkuSpec {
+  groupId: string
+  groupName: string
+  optionId: string
+  optionName: string
+}
+
+export interface ProductSku {
+  skuId: string
+  productId: string
+  spuId: string
+  skuCode: string
+  specs: SkuSpec[]
+  specText: string
+  price: number
+  originalPrice: number
+  unit: string
+  stock: number
+  status: 'ON_SHELF' | 'OFF_SHELF'
+}
+
+export interface ProductSkuUpsertRequest {
+  skuId?: string
+  skuCode?: string
+  specs: SkuSpec[]
+  price: number
+  originalPrice: number
+  unit: string
+  stock: number
+  status: 'ON_SHELF' | 'OFF_SHELF'
+}
+
+export interface ProductSpu {
+  id: string
+  merchantId: string
+  merchantName: string
+  categoryId: string
+  categoryName: string
+  brandId?: string | null
+  brandName: string
+  name: string
+  subtitle: string
+  mainImage: string
+  detail: string
+  detailImages: string[]
+  status: ProductStatus
+  sortOrder: number
+  skuCount: number
+  totalStock: number
+  minPrice: number
+  maxPrice: number
+  skus: ProductSku[]
+}
+
+export interface ProductSpuUpsertRequest {
+  id?: string
+  merchantId: string
+  categoryId: string
+  brandId?: string | null
+  name: string
+  subtitle?: string
+  mainImage?: string
+  detail?: string
+  detailImages?: string[]
+  status?: ProductStatus
+  sortOrder?: number
+  skus?: ProductSkuUpsertRequest[]
+}
+
 export interface Order {
   id: string
   orderNo: string

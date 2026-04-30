@@ -25,7 +25,13 @@
               </div>
               <div class="row-img">{{ item.imageText }}</div>
               <div class="row-info">
-                <div class="title">{{ item.name }}</div>
+                <div>
+                  <div class="title">{{ item.productName || item.name }}</div>
+                  <div class="snapshot" v-if="item.brandName || item.specText">
+                    <span v-if="item.brandName">{{ item.brandName }}</span>
+                    <span v-if="item.specText">{{ item.specText }}</span>
+                  </div>
+                </div>
                 <div class="price-action">
                   <span class="price">¥{{ item.price.toFixed(2) }}</span>
                   <div class="quantity-ctrl">
@@ -218,6 +224,15 @@ function goToCheckout() {
   font-size: 14px;
   color: #333;
   line-height: 1.5;
+}
+
+.snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  color: #8c8f99;
+  font-size: 12px;
 }
 
 .price-action {

@@ -72,9 +72,60 @@ export interface Product {
   stock: number
 }
 
+export interface SkuSpec {
+  groupId: string
+  groupName: string
+  optionId: string
+  optionName: string
+}
+
+export interface ProductSku {
+  skuId: string
+  productId: string
+  spuId: string
+  skuCode: string
+  specs: SkuSpec[]
+  specText: string
+  price: number
+  originalPrice: number
+  unit: string
+  stock: number
+  status: 'ON_SHELF' | 'OFF_SHELF'
+}
+
+export interface ProductCard {
+  id: string
+  spuId: string
+  skuId?: string | null
+  merchantId: string
+  merchantName: string
+  categoryId: string
+  brandId?: string | null
+  brandName: string
+  name: string
+  subtitle: string
+  sales: number
+  minPrice: number
+  maxPrice: number
+  originalPrice?: number
+  imageText: string
+  mainImage: string
+  unit: string
+  description: string
+  stock: number
+  singleSku: boolean
+}
+
+export interface ProductDetail {
+  product: ProductCard
+  skus: ProductSku[]
+  detailImages: string[]
+  detail: string
+}
+
 export interface MerchantDetail {
   merchant: Merchant
-  products: Product[]
+  products: ProductCard[]
 }
 
 export interface HomePageData {
@@ -107,6 +158,13 @@ export interface AddressInput {
 }
 
 export interface CartItem extends Product {
+  skuId?: string | null
+  productId?: string | null
+  spuId?: string | null
+  brandName?: string | null
+  productName?: string | null
+  specText?: string | null
+  status?: string | null
   quantity: number
   checked: boolean
 }
@@ -118,7 +176,8 @@ export interface CartMerchantGroup {
 }
 
 export interface CheckoutItem {
-  productId: string
+  productId?: string
+  skuId?: string
   quantity: number
 }
 

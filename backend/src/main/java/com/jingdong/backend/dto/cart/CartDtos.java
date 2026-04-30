@@ -1,7 +1,6 @@
 package com.jingdong.backend.dto.cart;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
@@ -9,9 +8,17 @@ public final class CartDtos {
   private CartDtos() {}
 
   public record AddCartItemRequest(
-      @NotBlank(message = "商品 ID 不能为空")
-      String productId
-  ) {}
+      String productId,
+      String skuId
+  ) {
+    public AddCartItemRequest(String productId) {
+      this(productId, null);
+    }
+
+    public String purchasableId() {
+      return skuId != null && !skuId.isBlank() ? skuId : productId;
+    }
+  }
 
   public record UpdateCartQuantityRequest(
       @NotNull(message = "商品数量不能为空")
@@ -26,6 +33,13 @@ public final class CartDtos {
 
   public record CartItemResponse(
       String id,
+      String skuId,
+      String productId,
+      String spuId,
+      String brandName,
+      String productName,
+      String specText,
+      String status,
       String merchantId,
       String merchantName,
       String categoryId,

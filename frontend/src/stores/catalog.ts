@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { STORAGE_KEYS } from '@/constants/storage'
 import { catalogService } from '@/services/catalog'
-import type { HomePageData, Merchant, MerchantDetail } from '@/types/domain'
+import type { HomePageData, Merchant, MerchantDetail, ProductCard, ProductDetail } from '@/types/domain'
 import { loadJson, saveJson } from '@/utils/storage'
 
 const popularKeywords = ['矿泉水', '榴莲', '气泡水', '咖啡', '三文鱼', '苹果']
@@ -10,10 +10,13 @@ const popularKeywords = ['矿泉水', '榴莲', '气泡水', '咖啡', '三文�
 export const useCatalogStore = defineStore('catalog', () => {
   const home = ref<HomePageData | null>(null)
   const merchants = ref<Merchant[]>([])
+  const products = ref<ProductCard[]>([])
   const merchantDetails = ref<Record<string, MerchantDetail>>({})
+  const productDetails = ref<Record<string, ProductDetail>>({})
   const homeLoading = ref(false)
   const searchLoading = ref(false)
   const detailLoading = ref(false)
+  const productDetailLoading = ref(false)
   const searchHistory = ref<string[]>(loadJson<string[]>(STORAGE_KEYS.searchHistory, []))
 
   async function loadHomePage(force = false) {
@@ -40,6 +43,31 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
+  async function searchProducts(keyword: string, filters: { merchantId?: string; categoryId?: string; brandId?: string } = {}) {
+    searchLoading.value = true
+    try {
+      products.value = await catalogService.searchProducts(keyword, filters)
+      return products.value
+    } finally {
+      searchLoading.value = false
+    }
+  }
+
+  async function searchAll(keyword: string) {
+    searchLoading.value = true
+    try {
+      const [merchantRows, productRows] = await Promise.all([
+        catalogService.searchMerchants(keyword),
+        catalogService.searchProducts(keyword),
+      ])
+      merchants.value = merchantRows
+      products.value = productRows
+      return { merchants: merchantRows, products: productRows }
+    } finally {
+      searchLoading.value = false
+    }
+  }
+
   async function loadMerchantDetail(merchantId: string, force = false) {
     if (detailLoading.value) {
       return merchantDetails.value[merchantId] ?? null
@@ -58,6 +86,29 @@ export const useCatalogStore = defineStore('catalog', () => {
       return detail
     } finally {
       detailLoading.value = false
+    }
+  }
+
+  async function loadProductDetail(productId: string, force = false) {
+    if (productDetailLoading.value) {
+      return productDetails.value[productId] ?? null
+    }
+    if (productDetails.value[productId] && !force) {
+      return productDetails.value[productId]
+    }
+
+    productDetailLoading.value = true
+    try {
+      const detail = await catalogService.getProductDetail(productId)
+      productDetails.value = {
+        ...productDetails.value,
+        [productId]: detail,
+        [detail.product.spuId]: detail,
+        ...(detail.product.skuId ? { [detail.product.skuId]: detail } : {}),
+      }
+      return detail
+    } finally {
+      productDetailLoading.value = false
     }
   }
 
@@ -80,15 +131,21 @@ export const useCatalogStore = defineStore('catalog', () => {
   return {
     home,
     merchants,
+    products,
     merchantDetails,
+    productDetails,
     homeLoading,
     searchLoading,
     detailLoading,
+    productDetailLoading,
     popularKeywords,
     searchHistory,
     loadHomePage,
     searchMerchants,
+    searchProducts,
+    searchAll,
     loadMerchantDetail,
+    loadProductDetail,
     addSearchHistory,
     clearSearchHistory,
   }

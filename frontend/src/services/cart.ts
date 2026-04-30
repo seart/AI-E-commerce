@@ -13,14 +13,14 @@ export const cartService = {
     )
   },
 
-  addCartItem(productId: string) {
+  addCartItem(skuId: string) {
     return request<CartItem[]>(
       {
         method: 'post',
         url: '/cart/items',
-        data: { productId },
+        data: { skuId, productId: skuId },
       },
-      () => mockServer.addCartItem(productId),
+      () => mockServer.addCartItem(skuId),
     )
   },
 

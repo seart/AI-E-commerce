@@ -27,7 +27,52 @@ CREATE TABLE IF NOT EXISTS categories (
   id VARCHAR(64) PRIMARY KEY,
   name VARCHAR(80) NOT NULL,
   icon VARCHAR(255) NOT NULL,
-  sort_order INT NOT NULL DEFAULT 0
+  parent_id VARCHAR(64) NULL,
+  level INT NOT NULL DEFAULT 1,
+  type VARCHAR(40) NOT NULL DEFAULT 'CHANNEL',
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS brands (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  logo VARCHAR(255) NOT NULL DEFAULT '',
+  description VARCHAR(255) NOT NULL DEFAULT '',
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_brands_name (name),
+  INDEX idx_brands_status_sort (status, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS spec_groups (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_spec_groups_name (name),
+  INDEX idx_spec_groups_status_sort (status, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS spec_options (
+  id VARCHAR(64) PRIMARY KEY,
+  group_id VARCHAR(64) NOT NULL,
+  name VARCHAR(80) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'ACTIVE',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_spec_options_group
+    FOREIGN KEY (group_id) REFERENCES spec_groups(id)
+    ON DELETE CASCADE,
+  UNIQUE KEY uk_spec_options_group_name (group_id, name),
+  INDEX idx_spec_options_group_sort (group_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS merchants (
@@ -49,6 +94,29 @@ CREATE TABLE IF NOT EXISTS merchants (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS product_spus (
+  id VARCHAR(64) PRIMARY KEY,
+  merchant_id VARCHAR(64) NOT NULL,
+  category_id VARCHAR(64) NOT NULL,
+  brand_id VARCHAR(64) NULL,
+  name VARCHAR(180) NOT NULL,
+  subtitle VARCHAR(255) NOT NULL DEFAULT '',
+  main_image VARCHAR(255) NOT NULL DEFAULT '',
+  detail VARCHAR(1000) NOT NULL DEFAULT '',
+  detail_images_json TEXT NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'DRAFT',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_product_spus_merchant
+    FOREIGN KEY (merchant_id) REFERENCES merchants(id)
+    ON DELETE CASCADE,
+  INDEX idx_product_spus_merchant (merchant_id),
+  INDEX idx_product_spus_category (category_id),
+  INDEX idx_product_spus_brand (brand_id),
+  INDEX idx_product_spus_status_sort (status, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS merchant_categories (
   id VARCHAR(64) PRIMARY KEY,
   merchant_id VARCHAR(64) NOT NULL,
@@ -64,11 +132,16 @@ CREATE TABLE IF NOT EXISTS products (
   id VARCHAR(64) PRIMARY KEY,
   merchant_id VARCHAR(64) NOT NULL,
   category_id VARCHAR(64) NOT NULL,
+  spu_id VARCHAR(64) NULL,
+  brand_id VARCHAR(64) NULL,
+  sku_code VARCHAR(80) NOT NULL DEFAULT '',
+  specs_json TEXT NULL,
   name VARCHAR(180) NOT NULL,
   sales INT NOT NULL DEFAULT 0,
   price DECIMAL(10,2) NOT NULL,
   original_price DECIMAL(10,2) NOT NULL,
   image_text VARCHAR(80) NOT NULL,
+  main_image VARCHAR(255) NOT NULL DEFAULT '',
   unit VARCHAR(40) NOT NULL,
   description VARCHAR(255) NOT NULL,
   stock INT NOT NULL DEFAULT 0,
@@ -80,7 +153,9 @@ CREATE TABLE IF NOT EXISTS products (
     FOREIGN KEY (merchant_id) REFERENCES merchants(id)
     ON DELETE CASCADE,
   INDEX idx_products_merchant_id (merchant_id),
-  INDEX idx_products_category_id (category_id)
+  INDEX idx_products_category_id (category_id),
+  INDEX idx_products_spu_id (spu_id),
+  INDEX idx_products_status_sort (status, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS addresses (

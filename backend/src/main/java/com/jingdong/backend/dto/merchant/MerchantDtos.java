@@ -1,5 +1,6 @@
 package com.jingdong.backend.dto.merchant;
 
+import com.jingdong.backend.dto.product.ProductDtos.ProductCardResponse;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -41,6 +42,6 @@ public final class MerchantDtos {
 
   public record MerchantDetailResponse(
       MerchantResponse merchant,
-      List<ProductResponse> products
+      List<ProductCardResponse> products
   ) {}
 }

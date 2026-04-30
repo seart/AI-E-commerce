@@ -1,6 +1,6 @@
 import { request } from '@/services/request'
 import { mockServer } from '@/services/mock/server'
-import type { HomePageData, Merchant, MerchantDetail } from '@/types/domain'
+import type { HomePageData, Merchant, MerchantDetail, ProductCard, ProductDetail } from '@/types/domain'
 
 export const catalogService = {
   getHomePage() {
@@ -31,6 +31,27 @@ export const catalogService = {
         url: `/merchants/${merchantId}`,
       },
       () => mockServer.getMerchantDetail(merchantId),
+    )
+  },
+
+  searchProducts(keyword: string, filters: { merchantId?: string; categoryId?: string; brandId?: string } = {}) {
+    return request<ProductCard[]>(
+      {
+        method: 'get',
+        url: '/products/search',
+        params: { keyword, ...filters },
+      },
+      () => mockServer.searchProducts(keyword, filters),
+    )
+  },
+
+  getProductDetail(productId: string) {
+    return request<ProductDetail>(
+      {
+        method: 'get',
+        url: `/products/${productId}`,
+      },
+      () => mockServer.getProductDetail(productId),
     )
   },
 }

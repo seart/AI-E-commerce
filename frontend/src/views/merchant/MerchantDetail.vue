@@ -56,30 +56,33 @@
           </div>
 
           <div class="scroll-content">
-            <div v-for="item in filteredProducts" :key="item.id" class="product-item">
-              <div class="product-img">{{ item.imageText }}</div>
+            <div v-for="item in filteredProducts" :key="item.id" class="product-item" @click="goToProduct(item.id)">
+              <div class="product-img">{{ item.mainImage || item.imageText }}</div>
               <div class="product-info">
                 <div>
                   <div class="product-name">{{ item.name }}</div>
-                  <div class="product-desc">{{ item.description }}</div>
+                  <div class="product-desc">{{ item.subtitle || item.description }}</div>
+                  <div v-if="item.brandName" class="product-desc">{{ item.brandName }}</div>
                   <div class="product-sales">月售{{ item.sales }}件 · 库存{{ item.stock }}{{ item.unit }}</div>
                 </div>
                 <div class="product-bottom">
                   <div class="product-price">
                     <span class="price-symbol">¥</span>
-                    <span class="price-num">{{ item.price.toFixed(2) }}</span>
+                    <span class="price-num">{{ priceText(item) }}</span>
                     <span v-if="item.originalPrice" class="old-price">¥{{ item.originalPrice.toFixed(2) }}</span>
                   </div>
                   <el-button
+                    v-if="item.singleSku"
                     type="primary"
                     circle
                     class="add-btn"
                     size="small"
                     :disabled="cartMutating"
-                    @click="handleAddToCart(item)"
+                    @click.stop="handleAddToCart(item)"
                   >
                     <el-icon><Plus /></el-icon>
                   </el-button>
+                  <el-button v-else round size="small" @click.stop="goToProduct(item.id)">选规格</el-button>
                 </div>
               </div>
             </div>
@@ -112,7 +115,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Search, Plus, ShoppingCart } from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
 import { useCatalogStore } from '@/stores/catalog'
-import type { Product } from '@/types/domain'
+import type { ProductCard } from '@/types/domain'
 
 defineOptions({ name: 'MerchantDetail' })
 
@@ -176,13 +179,27 @@ function handleSelect(index: string) {
   activeCategoryId.value = index
 }
 
-async function handleAddToCart(product: Product) {
+function priceText(product: ProductCard) {
+  const min = product.minPrice.toFixed(2)
+  const max = product.maxPrice.toFixed(2)
+  return min === max ? min : `${min} - ${max}`
+}
+
+async function handleAddToCart(product: ProductCard) {
+  if (!product.skuId) {
+    goToProduct(product.id)
+    return
+  }
   try {
-    await cartStore.addToCart(product)
+    await cartStore.addSkuToCart(product.skuId)
     ElMessage.success('已加入购物车')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '加入购物车失败')
   }
+}
+
+function goToProduct(id: string) {
+  router.push(`/products/${id}`)
 }
 
 function goToCart() {
@@ -330,6 +347,7 @@ function goToCart() {
   display: flex;
   gap: 12px;
   margin-bottom: 18px;
+  cursor: pointer;
 }
 
 .product-img {
@@ -344,6 +362,9 @@ function goToCart() {
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
+  text-align: center;
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .product-info {

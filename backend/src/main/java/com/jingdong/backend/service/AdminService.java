@@ -3,14 +3,25 @@ package com.jingdong.backend.service;
 import com.jingdong.backend.api.ErrorCode;
 import com.jingdong.backend.auth.UserContext;
 import com.jingdong.backend.dto.admin.AdminDtos.AuditLogResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.BrandAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.BrandUpsertRequest;
+import com.jingdong.backend.dto.admin.AdminDtos.CategoryAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.CategoryUpsertRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.MerchantAdminResponse;
 import com.jingdong.backend.dto.admin.AdminDtos.MerchantUpsertRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.ProductAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.ProductSkuAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.ProductSkuUpsertRequest;
+import com.jingdong.backend.dto.admin.AdminDtos.ProductSpuAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.ProductSpuUpsertRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.ProductUpsertRequest;
+import com.jingdong.backend.dto.admin.AdminDtos.SpecGroupAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.SpecGroupUpsertRequest;
+import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionAdminResponse;
+import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionUpsertRequest;
 import com.jingdong.backend.dto.order.OrderDtos.OrderResponse;
 import com.jingdong.backend.entity.DataEntities.AuditLogEntity;
 import com.jingdong.backend.entity.DataEntities.MerchantEntity;
-import com.jingdong.backend.entity.DataEntities.ProductEntity;
 import com.jingdong.backend.exception.BusinessException;
 import com.jingdong.backend.store.DatabaseStore;
 import com.jingdong.backend.store.DatabaseStore.UserRecord;
@@ -26,10 +37,16 @@ import org.springframework.stereotype.Service;
 public class AdminService {
   private final DatabaseStore store;
   private final AuditLogService auditLogService;
+  private final ProductCenterService productCenterService;
 
-  public AdminService(DatabaseStore store, AuditLogService auditLogService) {
+  public AdminService(
+      DatabaseStore store,
+      AuditLogService auditLogService,
+      ProductCenterService productCenterService
+  ) {
     this.store = store;
     this.auditLogService = auditLogService;
+    this.productCenterService = productCenterService;
   }
 
   public Map<String, Object> dashboard() {
@@ -66,26 +83,75 @@ public class AdminService {
   }
 
   public ProductAdminResponse saveProduct(ProductUpsertRequest request) {
-    ProductEntity product = new ProductEntity();
-    product.setId(request.id());
-    product.setMerchantId(request.merchantId());
-    product.setCategoryId(value(request.categoryId(), "general"));
-    product.setName(value(request.name(), "未命名商品"));
-    product.setSales(value(request.sales(), 0));
-    product.setPrice(value(request.price(), BigDecimal.ZERO));
-    product.setOriginalPrice(value(request.originalPrice(), product.getPrice()));
-    product.setImageText(value(request.imageText(), "商品"));
-    product.setUnit(value(request.unit(), "件"));
-    product.setDescription(value(request.description(), "后台新增商品"));
-    product.setStock(value(request.stock(), 0));
-    product.setStatus(value(request.status(), "ON_SHELF"));
-    product.setSortOrder(value(request.sortOrder(), 100));
-    ProductEntity saved = store.saveProduct(product);
-    auditLogService.record("ADMIN_SAVE_PRODUCT", "PRODUCT", saved.getId(), saved.getName());
-    return store.adminProducts().stream()
-        .filter(item -> item.id().equals(saved.getId()))
-        .findFirst()
-        .orElseThrow();
+    return productCenterService.saveLegacyProduct(request);
+  }
+
+  public List<CategoryAdminResponse> categories() {
+    return productCenterService.categories();
+  }
+
+  public CategoryAdminResponse saveCategory(CategoryUpsertRequest request) {
+    return productCenterService.saveCategory(request);
+  }
+
+  public CategoryAdminResponse updateCategoryStatus(String categoryId, String status) {
+    return productCenterService.updateCategoryStatus(categoryId, status);
+  }
+
+  public List<BrandAdminResponse> brands() {
+    return productCenterService.brands();
+  }
+
+  public BrandAdminResponse saveBrand(BrandUpsertRequest request) {
+    return productCenterService.saveBrand(request);
+  }
+
+  public BrandAdminResponse updateBrandStatus(String brandId, String status) {
+    return productCenterService.updateBrandStatus(brandId, status);
+  }
+
+  public List<SpecGroupAdminResponse> specGroups() {
+    return productCenterService.specGroups();
+  }
+
+  public SpecGroupAdminResponse saveSpecGroup(SpecGroupUpsertRequest request) {
+    return productCenterService.saveSpecGroup(request);
+  }
+
+  public SpecOptionAdminResponse saveSpecOption(String groupId, SpecOptionUpsertRequest request) {
+    return productCenterService.saveSpecOption(groupId, request);
+  }
+
+  public SpecOptionAdminResponse updateSpecOption(String optionId, SpecOptionUpsertRequest request) {
+    return productCenterService.updateSpecOption(optionId, request);
+  }
+
+  public SpecOptionAdminResponse updateSpecOptionStatus(String optionId, String status) {
+    return productCenterService.updateSpecOptionStatus(optionId, status);
+  }
+
+  public List<ProductSpuAdminResponse> productSpus() {
+    return productCenterService.productSpus();
+  }
+
+  public ProductSpuAdminResponse productSpuDetail(String spuId) {
+    return productCenterService.productSpuDetail(spuId);
+  }
+
+  public ProductSpuAdminResponse saveProductSpu(ProductSpuUpsertRequest request) {
+    return productCenterService.saveProductSpu(request);
+  }
+
+  public ProductSpuAdminResponse updateProductSpuStatus(String spuId, String status) {
+    return productCenterService.updateProductSpuStatus(spuId, status);
+  }
+
+  public ProductSkuAdminResponse saveProductSku(String spuId, ProductSkuUpsertRequest request) {
+    return productCenterService.saveProductSku(spuId, request);
+  }
+
+  public ProductSkuAdminResponse updateProductSkuStatus(String spuId, String skuId, String status) {
+    return productCenterService.updateProductSkuStatus(spuId, skuId, status);
   }
 
   public List<OrderResponse> orders() {

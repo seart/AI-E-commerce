@@ -20,6 +20,12 @@ public enum ErrorCode {
   FORBIDDEN(4030, "无权访问该资源", HttpStatus.FORBIDDEN),
   RATE_LIMITED(4290, "操作过于频繁，请稍后再试", HttpStatus.TOO_MANY_REQUESTS),
   MERCHANT_NOT_FOUND(4040, "商家不存在或已下线", HttpStatus.NOT_FOUND),
+  CATEGORY_NOT_FOUND(4041, "类目不存在", HttpStatus.NOT_FOUND),
+  BRAND_NOT_FOUND(4042, "品牌不存在", HttpStatus.NOT_FOUND),
+  SPEC_NOT_FOUND(4043, "规格不存在", HttpStatus.NOT_FOUND),
+  SKU_NOT_FOUND(4044, "SKU不存在", HttpStatus.NOT_FOUND),
+  PRODUCT_CENTER_INVALID_STATE(4090, "商品中心状态不允许执行该操作", HttpStatus.BAD_REQUEST),
+  DUPLICATE_SKU_SPEC(4091, "SKU规格组合重复", HttpStatus.CONFLICT),
   INTERNAL_ERROR(5000, "系统异常", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final int code;

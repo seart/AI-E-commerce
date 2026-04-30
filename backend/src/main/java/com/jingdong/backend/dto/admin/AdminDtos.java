@@ -74,6 +74,147 @@ public final class AdminDtos {
       int sortOrder
   ) {}
 
+  public record CategoryAdminResponse(
+      String id,
+      String name,
+      String icon,
+      String parentId,
+      int level,
+      String type,
+      String status,
+      int sortOrder
+  ) {}
+
+  public record CategoryUpsertRequest(
+      String id,
+      String name,
+      String icon,
+      String parentId,
+      Integer level,
+      String type,
+      String status,
+      Integer sortOrder
+  ) {}
+
+  public record BrandAdminResponse(
+      String id,
+      String name,
+      String logo,
+      String description,
+      String status,
+      int sortOrder
+  ) {}
+
+  public record BrandUpsertRequest(
+      String id,
+      String name,
+      String logo,
+      String description,
+      String status,
+      Integer sortOrder
+  ) {}
+
+  public record SpecOptionAdminResponse(
+      String id,
+      String groupId,
+      String name,
+      String status,
+      int sortOrder
+  ) {}
+
+  public record SpecGroupAdminResponse(
+      String id,
+      String name,
+      String status,
+      int sortOrder,
+      List<SpecOptionAdminResponse> options
+  ) {}
+
+  public record SpecGroupUpsertRequest(
+      String id,
+      String name,
+      String status,
+      Integer sortOrder
+  ) {}
+
+  public record SpecOptionUpsertRequest(
+      String id,
+      String name,
+      String status,
+      Integer sortOrder
+  ) {}
+
+  public record SkuSpecRequest(
+      String groupId,
+      String groupName,
+      String optionId,
+      String optionName
+  ) {}
+
+  public record ProductSkuAdminResponse(
+      String skuId,
+      String productId,
+      String spuId,
+      String skuCode,
+      List<SkuSpecRequest> specs,
+      String specText,
+      BigDecimal price,
+      BigDecimal originalPrice,
+      String unit,
+      int stock,
+      String status
+  ) {}
+
+  public record ProductSkuUpsertRequest(
+      String skuId,
+      String skuCode,
+      List<SkuSpecRequest> specs,
+      BigDecimal price,
+      BigDecimal originalPrice,
+      String unit,
+      Integer stock,
+      String status
+  ) {}
+
+  public record ProductSpuAdminResponse(
+      String id,
+      String merchantId,
+      String merchantName,
+      String categoryId,
+      String categoryName,
+      String brandId,
+      String brandName,
+      String name,
+      String subtitle,
+      String mainImage,
+      String detail,
+      List<String> detailImages,
+      String status,
+      int sortOrder,
+      int skuCount,
+      int totalStock,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      List<ProductSkuAdminResponse> skus
+  ) {}
+
+  public record ProductSpuUpsertRequest(
+      String id,
+      String merchantId,
+      String categoryId,
+      String brandId,
+      String name,
+      String subtitle,
+      String mainImage,
+      String detail,
+      List<String> detailImages,
+      String status,
+      Integer sortOrder,
+      List<ProductSkuUpsertRequest> skus
+  ) {}
+
+  public record StatusUpdateRequest(String status) {}
+
   public record OrderStatusRequest(String status, String reason) {}
 
   public record UserStatusRequest(String status) {}

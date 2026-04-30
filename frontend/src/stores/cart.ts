@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { cartService } from '@/services/cart'
-import type { CartItem, CartMerchantGroup, Product } from '@/types/domain'
+import type { CartItem, CartMerchantGroup, Product, ProductCard, ProductSku } from '@/types/domain'
 
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([])
@@ -67,8 +67,21 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  async function addToCart(product: Product) {
-    return syncCart(() => cartService.addCartItem(product.id))
+  async function addSkuToCart(skuId: string) {
+    return syncCart(() => cartService.addCartItem(skuId))
+  }
+
+  async function addToCart(product: Product | ProductCard | ProductSku) {
+    if ('skuId' in product && product.skuId) {
+      return addSkuToCart(product.skuId)
+    }
+    if ('productId' in product && product.productId) {
+      return addSkuToCart(product.productId)
+    }
+    if ('id' in product) {
+      return addSkuToCart(product.id)
+    }
+    throw new Error('商品信息不完整')
   }
 
   async function updateQuantity(productId: string, delta: number) {
@@ -118,6 +131,7 @@ export const useCartStore = defineStore('cart', () => {
     cartGroupedByMerchant,
     selectedGroups,
     loadCart,
+    addSkuToCart,
     addToCart,
     updateQuantity,
     setItemChecked,

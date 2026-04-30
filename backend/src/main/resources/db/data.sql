@@ -38,6 +38,30 @@ ON DUPLICATE KEY UPDATE
   icon = VALUES(icon),
   sort_order = VALUES(sort_order);
 
+INSERT INTO brands (id, name, logo, description, status, sort_order) VALUES
+  ('brand_jd', '京东自营', '', '平台自营品牌', 'ACTIVE', 10)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  logo = VALUES(logo),
+  description = VALUES(description),
+  status = VALUES(status),
+  sort_order = VALUES(sort_order);
+
+INSERT INTO spec_groups (id, name, status, sort_order) VALUES
+  ('spec_capacity', '容量', 'ACTIVE', 10)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  status = VALUES(status),
+  sort_order = VALUES(sort_order);
+
+INSERT INTO spec_options (id, group_id, name, status, sort_order) VALUES
+  ('spec_capacity_default', 'spec_capacity', '标准装', 'ACTIVE', 10)
+ON DUPLICATE KEY UPDATE
+  group_id = VALUES(group_id),
+  name = VALUES(name),
+  status = VALUES(status),
+  sort_order = VALUES(sort_order);
+
 INSERT INTO merchants (
   id, name, sales, min_order_price, delivery_fee, delivery_minutes,
   tags_json, description, notice, rating, logo_background, logo_text, sort_order
@@ -57,6 +81,29 @@ ON DUPLICATE KEY UPDATE
   rating = VALUES(rating),
   logo_background = VALUES(logo_background),
   logo_text = VALUES(logo_text),
+  sort_order = VALUES(sort_order);
+
+INSERT INTO product_spus (
+  id, merchant_id, category_id, brand_id, name, subtitle, main_image,
+  detail, detail_images_json, status, sort_order
+) VALUES
+  ('spu_p1', 'm1', 'fresh', 'brand_jd', '泰国进口金枕榴莲果肉 300g', '冷链到仓，新鲜果肉即开即食', '榴莲', '冷链到仓，新鲜果肉即开即食', '[]', 'ON_SHELF', 10),
+  ('spu_p2', 'm1', 'fresh', 'brand_jd', '新疆阿克苏冰糖心苹果 1kg', '脆甜多汁，适合家庭囤货', '苹果', '脆甜多汁，适合家庭囤货', '[]', 'ON_SHELF', 20),
+  ('spu_p3', 'm1', 'drink', 'brand_jd', '农夫山泉饮用天然水 550ml*12', '企业团购高频补货品', '矿泉水', '企业团购高频补货品', '[]', 'ON_SHELF', 30),
+  ('spu_p4', 'm2', 'snack', 'brand_jd', '散装卫龙甜面筋 200g', '爆款休闲零食，办公室常备', '辣条', '爆款休闲零食，办公室常备', '[]', 'ON_SHELF', 10),
+  ('spu_p5', 'm2', 'drink', 'brand_jd', '元气森林白桃气泡水 480ml*6', '低糖轻饮，活动福利专区', '气泡水', '低糖轻饮，活动福利专区', '[]', 'ON_SHELF', 20),
+  ('spu_p6', 'm3', 'seafood', 'brand_jd', '挪威三文鱼切片 400g', '冷链直送，高蛋白轻食选择', '三文鱼', '冷链直送，高蛋白轻食选择', '[]', 'ON_SHELF', 10),
+  ('spu_p7', 'm3', 'drink', 'brand_jd', '星巴克拿铁咖啡 270ml*10', '商务茶歇高频采购商品', '咖啡', '商务茶歇高频采购商品', '[]', 'ON_SHELF', 20)
+ON DUPLICATE KEY UPDATE
+  merchant_id = VALUES(merchant_id),
+  category_id = VALUES(category_id),
+  brand_id = VALUES(brand_id),
+  name = VALUES(name),
+  subtitle = VALUES(subtitle),
+  main_image = VALUES(main_image),
+  detail = VALUES(detail),
+  detail_images_json = VALUES(detail_images_json),
+  status = VALUES(status),
   sort_order = VALUES(sort_order);
 
 INSERT INTO merchant_categories (id, merchant_id, category_id, name, sort_order) VALUES

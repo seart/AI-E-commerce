@@ -177,7 +177,13 @@ public final class DataEntities {
     private String id;
     private String name;
     private String icon;
+    private String parentId;
+    private Integer level;
+    private String type;
+    private String status;
     private Integer sortOrder;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public String getId() {
       return id;
@@ -203,12 +209,60 @@ public final class DataEntities {
       this.icon = icon;
     }
 
+    public String getParentId() {
+      return parentId;
+    }
+
+    public void setParentId(String parentId) {
+      this.parentId = parentId;
+    }
+
+    public Integer getLevel() {
+      return level;
+    }
+
+    public void setLevel(Integer level) {
+      this.level = level;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public void setType(String type) {
+      this.type = type;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
     public Integer getSortOrder() {
       return sortOrder;
     }
 
     public void setSortOrder(Integer sortOrder) {
       this.sortOrder = sortOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
     }
   }
 
@@ -393,17 +447,348 @@ public final class DataEntities {
     }
   }
 
+  @TableName("brands")
+  public static class BrandEntity {
+    @TableId
+    private String id;
+    private String name;
+    private String logo;
+    private String description;
+    private String status;
+    private Integer sortOrder;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getLogo() {
+      return logo;
+    }
+
+    public void setLogo(String logo) {
+      this.logo = logo;
+    }
+
+    public String getDescription() {
+      return description;
+    }
+
+    public void setDescription(String description) {
+      this.description = description;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
+    public Integer getSortOrder() {
+      return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+      this.sortOrder = sortOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
+  @TableName("spec_groups")
+  public static class SpecGroupEntity {
+    @TableId
+    private String id;
+    private String name;
+    private String status;
+    private Integer sortOrder;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
+    public Integer getSortOrder() {
+      return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+      this.sortOrder = sortOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
+  @TableName("spec_options")
+  public static class SpecOptionEntity {
+    @TableId
+    private String id;
+    private String groupId;
+    private String name;
+    private String status;
+    private Integer sortOrder;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getGroupId() {
+      return groupId;
+    }
+
+    public void setGroupId(String groupId) {
+      this.groupId = groupId;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
+    public Integer getSortOrder() {
+      return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+      this.sortOrder = sortOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
+  @TableName("product_spus")
+  public static class ProductSpuEntity {
+    @TableId
+    private String id;
+    private String merchantId;
+    private String categoryId;
+    private String brandId;
+    private String name;
+    private String subtitle;
+    private String mainImage;
+    private String detail;
+    private String detailImagesJson;
+    private String status;
+    private Integer sortOrder;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getMerchantId() {
+      return merchantId;
+    }
+
+    public void setMerchantId(String merchantId) {
+      this.merchantId = merchantId;
+    }
+
+    public String getCategoryId() {
+      return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+      this.categoryId = categoryId;
+    }
+
+    public String getBrandId() {
+      return brandId;
+    }
+
+    public void setBrandId(String brandId) {
+      this.brandId = brandId;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getSubtitle() {
+      return subtitle;
+    }
+
+    public void setSubtitle(String subtitle) {
+      this.subtitle = subtitle;
+    }
+
+    public String getMainImage() {
+      return mainImage;
+    }
+
+    public void setMainImage(String mainImage) {
+      this.mainImage = mainImage;
+    }
+
+    public String getDetail() {
+      return detail;
+    }
+
+    public void setDetail(String detail) {
+      this.detail = detail;
+    }
+
+    public String getDetailImagesJson() {
+      return detailImagesJson;
+    }
+
+    public void setDetailImagesJson(String detailImagesJson) {
+      this.detailImagesJson = detailImagesJson;
+    }
+
+    public String getStatus() {
+      return status;
+    }
+
+    public void setStatus(String status) {
+      this.status = status;
+    }
+
+    public Integer getSortOrder() {
+      return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+      this.sortOrder = sortOrder;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
   @TableName("products")
   public static class ProductEntity {
     @TableId
     private String id;
     private String merchantId;
     private String categoryId;
+    private String spuId;
+    private String brandId;
+    private String skuCode;
+    private String specsJson;
     private String name;
     private Integer sales;
     private BigDecimal price;
     private BigDecimal originalPrice;
     private String imageText;
+    private String mainImage;
     private String unit;
     private String description;
     private Integer stock;
@@ -432,6 +817,38 @@ public final class DataEntities {
 
     public void setCategoryId(String categoryId) {
       this.categoryId = categoryId;
+    }
+
+    public String getSpuId() {
+      return spuId;
+    }
+
+    public void setSpuId(String spuId) {
+      this.spuId = spuId;
+    }
+
+    public String getBrandId() {
+      return brandId;
+    }
+
+    public void setBrandId(String brandId) {
+      this.brandId = brandId;
+    }
+
+    public String getSkuCode() {
+      return skuCode;
+    }
+
+    public void setSkuCode(String skuCode) {
+      this.skuCode = skuCode;
+    }
+
+    public String getSpecsJson() {
+      return specsJson;
+    }
+
+    public void setSpecsJson(String specsJson) {
+      this.specsJson = specsJson;
     }
 
     public String getName() {
@@ -472,6 +889,14 @@ public final class DataEntities {
 
     public void setImageText(String imageText) {
       this.imageText = imageText;
+    }
+
+    public String getMainImage() {
+      return mainImage;
+    }
+
+    public void setMainImage(String mainImage) {
+      this.mainImage = mainImage;
     }
 
     public String getUnit() {

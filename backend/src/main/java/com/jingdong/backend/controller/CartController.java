@@ -36,7 +36,7 @@ public class CartController {
   public ApiResponse<List<CartItemResponse>> addItem(
       @Valid @RequestBody AddCartItemRequest request
   ) {
-    return ApiResponse.success(cartService.addCartItem(UserContext.userId(), request.productId()));
+    return ApiResponse.success(cartService.addCartItem(UserContext.userId(), request.purchasableId()));
   }
 
   @PatchMapping("/items/{productId}")

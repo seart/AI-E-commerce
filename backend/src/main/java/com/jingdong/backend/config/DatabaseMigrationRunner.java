@@ -1,6 +1,7 @@
 package com.jingdong.backend.config;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,8 +20,19 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     addColumn("users", "role", "VARCHAR(40) NOT NULL DEFAULT 'CUSTOMER'");
     addColumn("users", "status", "VARCHAR(40) NOT NULL DEFAULT 'ACTIVE'");
     addColumn("users", "last_login_at", "TIMESTAMP NULL");
+    addColumn("categories", "parent_id", "VARCHAR(64) NULL");
+    addColumn("categories", "level", "INT NOT NULL DEFAULT 1");
+    addColumn("categories", "type", "VARCHAR(40) NOT NULL DEFAULT 'CHANNEL'");
+    addColumn("categories", "status", "VARCHAR(40) NOT NULL DEFAULT 'ACTIVE'");
+    addColumn("categories", "created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+    addColumn("categories", "updated_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
     addColumn("merchants", "status", "VARCHAR(40) NOT NULL DEFAULT 'ACTIVE'");
     addColumn("products", "status", "VARCHAR(40) NOT NULL DEFAULT 'ON_SHELF'");
+    addColumn("products", "spu_id", "VARCHAR(64) NULL");
+    addColumn("products", "brand_id", "VARCHAR(64) NULL");
+    addColumn("products", "sku_code", "VARCHAR(80) NOT NULL DEFAULT ''");
+    addColumn("products", "specs_json", "TEXT NULL");
+    addColumn("products", "main_image", "VARCHAR(255) NOT NULL DEFAULT ''");
     addColumn("orders", "status_history_json", "TEXT NULL");
     addColumn("orders", "cancel_reason", "VARCHAR(255) NULL");
     addColumn("orders", "refund_reason", "VARCHAR(255) NULL");
@@ -29,8 +41,13 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     addColumn("orders", "paid_at", "TIMESTAMP NULL");
     addColumn("orders", "payment_expire_at", "TIMESTAMP NULL");
     addColumn("orders", "closed_at", "TIMESTAMP NULL");
+    addIndex("products", "idx_products_spu_id", "spu_id");
+    addIndex("products", "idx_products_status_sort", "status, sort_order");
     createAuditLogs();
     createPayments();
+    createProductCenterTables();
+    seedProductCenterDictionaries();
+    migrateLegacyProductsToSpu();
     seedAdmin();
   }
 
@@ -49,6 +66,145 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     );
     if (count == null || count == 0) {
       jdbcTemplate.execute("alter table " + table + " add column " + column + " " + definition);
+    }
+  }
+
+  private void addIndex(String table, String indexName, String columns) {
+    Integer count = jdbcTemplate.queryForObject(
+        """
+        select count(*)
+        from information_schema.statistics
+        where table_schema = database()
+          and table_name = ?
+          and index_name = ?
+        """,
+        Integer.class,
+        table,
+        indexName
+    );
+    if (count == null || count == 0) {
+      jdbcTemplate.execute("alter table " + table + " add index " + indexName + " (" + columns + ")");
+    }
+  }
+
+  private void createProductCenterTables() {
+    jdbcTemplate.execute("""
+        create table if not exists brands (
+          id varchar(64) primary key,
+          name varchar(120) not null,
+          logo varchar(255) not null default '',
+          description varchar(255) not null default '',
+          status varchar(40) not null default 'ACTIVE',
+          sort_order int not null default 0,
+          created_at timestamp not null default current_timestamp,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          unique key uk_brands_name (name),
+          index idx_brands_status_sort (status, sort_order)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+    jdbcTemplate.execute("""
+        create table if not exists spec_groups (
+          id varchar(64) primary key,
+          name varchar(80) not null,
+          status varchar(40) not null default 'ACTIVE',
+          sort_order int not null default 0,
+          created_at timestamp not null default current_timestamp,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          unique key uk_spec_groups_name (name),
+          index idx_spec_groups_status_sort (status, sort_order)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+    jdbcTemplate.execute("""
+        create table if not exists spec_options (
+          id varchar(64) primary key,
+          group_id varchar(64) not null,
+          name varchar(80) not null,
+          status varchar(40) not null default 'ACTIVE',
+          sort_order int not null default 0,
+          created_at timestamp not null default current_timestamp,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          constraint fk_spec_options_group foreign key (group_id) references spec_groups(id) on delete cascade,
+          unique key uk_spec_options_group_name (group_id, name),
+          index idx_spec_options_group_sort (group_id, sort_order)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+    jdbcTemplate.execute("""
+        create table if not exists product_spus (
+          id varchar(64) primary key,
+          merchant_id varchar(64) not null,
+          category_id varchar(64) not null,
+          brand_id varchar(64) null,
+          name varchar(180) not null,
+          subtitle varchar(255) not null default '',
+          main_image varchar(255) not null default '',
+          detail varchar(1000) not null default '',
+          detail_images_json text not null,
+          status varchar(40) not null default 'DRAFT',
+          sort_order int not null default 0,
+          created_at timestamp not null default current_timestamp,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          constraint fk_product_spus_merchant foreign key (merchant_id) references merchants(id) on delete cascade,
+          index idx_product_spus_merchant (merchant_id),
+          index idx_product_spus_category (category_id),
+          index idx_product_spus_brand (brand_id),
+          index idx_product_spus_status_sort (status, sort_order)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+  }
+
+  private void seedProductCenterDictionaries() {
+    jdbcTemplate.update("""
+        insert ignore into brands (id, name, logo, description, status, sort_order)
+        values ('brand_jd', '京东自营', '', '平台自营品牌', 'ACTIVE', 10)
+        """);
+    jdbcTemplate.update("""
+        insert ignore into spec_groups (id, name, status, sort_order)
+        values ('spec_capacity', '容量', 'ACTIVE', 10)
+        """);
+    jdbcTemplate.update("""
+        insert ignore into spec_options (id, group_id, name, status, sort_order)
+        values ('spec_capacity_default', 'spec_capacity', '标准装', 'ACTIVE', 10)
+        """);
+  }
+
+  private void migrateLegacyProductsToSpu() {
+    List<Map<String, Object>> products = jdbcTemplate.queryForList("""
+        select id, merchant_id, category_id, name, description, image_text, status, sort_order
+        from products
+        where spu_id is null or spu_id = ''
+           or specs_json is null or specs_json = ''
+        """);
+    for (Map<String, Object> product : products) {
+      String productId = (String) product.get("id");
+      String spuId = "spu_" + productId;
+      jdbcTemplate.update("""
+          insert ignore into product_spus (
+            id, merchant_id, category_id, brand_id, name, subtitle, main_image,
+            detail, detail_images_json, status, sort_order
+          )
+          values (?, ?, ?, 'brand_jd', ?, ?, ?, ?, '[]', ?, ?)
+          """,
+          spuId,
+          product.get("merchant_id"),
+          product.get("category_id"),
+          product.get("name"),
+          product.get("description"),
+          product.get("image_text"),
+          product.get("description"),
+          product.get("status"),
+          product.get("sort_order")
+      );
+      jdbcTemplate.update("""
+          update products
+          set spu_id = ?, brand_id = 'brand_jd', sku_code = ?, specs_json = ?,
+              main_image = case when main_image = '' then image_text else main_image end
+          where id = ?
+          """,
+          spuId,
+          productId,
+          "[{\"groupId\":\"spec_capacity\",\"groupName\":\"容量\",\"optionId\":\"spec_capacity_default\",\"optionName\":\"标准装\"}]",
+          productId
+      );
     }
   }
 

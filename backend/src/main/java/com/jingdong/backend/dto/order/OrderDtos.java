@@ -13,13 +13,22 @@ public final class OrderDtos {
   private OrderDtos() {}
 
   public record CheckoutItemRequest(
-      @NotBlank(message = "商品 ID 不能为空")
       String productId,
+
+      String skuId,
 
       @NotNull(message = "商品数量不能为空")
       @Min(value = 1, message = "商品数量至少为 1")
       Integer quantity
-  ) {}
+  ) {
+    public CheckoutItemRequest(String productId, Integer quantity) {
+      this(productId, null, quantity);
+    }
+
+    public String purchasableId() {
+      return skuId != null && !skuId.isBlank() ? skuId : productId;
+    }
+  }
 
   public record CreateOrderRequest(
       @NotBlank(message = "地址 ID 不能为空")
