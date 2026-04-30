@@ -7,8 +7,10 @@
 - 仓库路径：`/Users/love/Documents/code/local/Front/AI-E-commerce`
 - 远程仓库：`git@github.com:seart/AI-E-commerce.git`
 - 主分支：`main`
-- 当前主线已推送到远程。
+- 本地 `main` 已合并商品中心阶段提交 `9546a7c`；远端推送因当前环境缺少 GitHub 凭据暂未完成。
 - 已保留的账号权限分支：`codex/account-permission-security-20260425-1`
+- 已保留的商品中心分支：`codex/product-center-stage-1-4`
+- 当前库存中心分支：`codex/inventory-center-20260430-1`
 - 本地可忽略输出包括：`.worktrees/`、`backend/logs/`、`backend/target/`、`frontend/dist/`、`admin/dist/`、`node_modules/`。
 
 ## 全局协作规则
@@ -38,20 +40,27 @@
 - 登录限流包含手机号维度和 IP 维度。
 - 禁用用户不能继续使用旧 token。
 
+### 商品中心
+
+- 已建立类目、品牌、规格组、规格值、SPU、SKU 基础模型。
+- 后台商品中心支持商品、类目、品牌、规格维护。
+- 用户端支持商品搜索、商品详情和 SKU 维度加购/下单。
+- 旧 `/admin/products` 和 `productId` 交易链路继续兼容。
+- `backend/README.md` 已按代码对齐商品中心、支付模拟、订单闭环和 MySQL 落库说明。
+
 ### 已验证命令
 
 - `cd backend && mvn -nsu -Drocketmq.log.root=logs/rocketmqlogs clean test`
-- 最近一次结果：20 个测试通过，0 失败。
+- 最近一次结果：31 个测试通过，0 失败。
 
 ## 后续模块路线
 
 按用户指定顺序继续：
 
-1. 商品中心
-2. 库存中心
-3. 购物车与结算中心、订单中心、支付中心、优惠券与促销中心
-4. 财务与结算中心
-5. 风控与安全中心
+1. 库存中心
+2. 购物车与结算中心、订单中心、支付中心、优惠券与促销中心
+3. 财务与结算中心
+4. 风控与安全中心
 
 ## 七阶段执行约定
 
@@ -70,25 +79,23 @@
 6. 派发代码质量审查子代理，确认实现质量和安全边界。
 7. 所有任务通过后，派发最终审查，主会话运行验证、合并回 `main`，保留功能分支。
 
-## 商品中心起点
+## 库存中心起点
 
-现有系统已有基础商品能力：
+现有系统在商品中心合并后已有 SKU 级商品主数据，但库存仍需要中心化治理：
 
-- 用户端接口：`/home`、`/merchants/search`、`/merchants/{merchantId}`。
-- 后台接口：`/admin/merchants`、`/admin/products`。
-- 现有实体集中在 `backend/src/main/java/com/jingdong/backend/entity/DataEntities.java`。
-- 现有持久化门面集中在 `backend/src/main/java/com/jingdong/backend/store/DatabaseStore.java`。
-- 现有后台服务在 `backend/src/main/java/com/jingdong/backend/service/AdminService.java`。
-- 后台商品页面在 `admin/src/views/ProductsView.vue`。
+- 商品 SKU 仍在 `products` 表，`products.stock` 继续作为可售库存兼容字段。
+- 订单创建、支付确认、超时关单、取消和退款会影响库存。
+- 库存中心本阶段新增 `inventory_accounts`、`inventory_transactions` 和 `InventoryService`。
+- 后台商品中心增加库存标签页，库存接口仍位于 `/api/admin/**`。
 
-商品中心第一轮建议补齐：
+库存中心第一轮补齐：
 
-- 类目管理。
-- 品牌、SPU、SKU、规格基础模型。
-- 商品上下架和状态约束。
-- 后台商品保存参数校验。
-- 商品关键操作审计。
-- 用户端只展示可售商品，不展示下架或禁用商家商品。
+- SKU 库存账户。
+- 下单锁定库存。
+- 支付成功确认售出。
+- 待支付取消和支付超时释放锁定库存。
+- 退款确认和已支付取消回补已售库存。
+- 库存流水和后台人工调整审计。
 
 ## 验收基线
 

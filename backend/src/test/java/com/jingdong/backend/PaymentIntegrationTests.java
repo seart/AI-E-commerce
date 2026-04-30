@@ -62,8 +62,10 @@ class PaymentIntegrationTests {
     );
     jdbcTemplate.update("delete from orders where user_id = ?", DEMO_USER_ID);
     jdbcTemplate.update("delete from cart_items where user_id = ?", DEMO_USER_ID);
+    jdbcTemplate.update("delete from inventory_transactions where sku_id = ?", "p1");
     jdbcTemplate.update("update merchants set status = 'ACTIVE' where id = 'm1'");
     jdbcTemplate.update("update products set stock = 20, status = 'ON_SHELF' where id = 'p1'");
+    resetInventory("p1", 20);
   }
 
   @Test
@@ -246,6 +248,20 @@ class PaymentIntegrationTests {
         Integer.class,
         productId
     );
+  }
+
+  private void resetInventory(String productId, int available) {
+    int updated = jdbcTemplate.update("""
+        update inventory_accounts
+        set available_quantity = ?, locked_quantity = 0, sold_quantity = 0, version = version + 1
+        where sku_id = ?
+        """, available, productId);
+    if (updated == 0) {
+      jdbcTemplate.update("""
+          insert into inventory_accounts (sku_id, available_quantity, locked_quantity, sold_quantity, version)
+          values (?, ?, 0, 0, 0)
+          """, productId, available);
+    }
   }
 
   @SuppressWarnings("unchecked")

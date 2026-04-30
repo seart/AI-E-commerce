@@ -22,6 +22,9 @@ import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionAdminResponse;
 import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionUpsertRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.StatusUpdateRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.UserStatusRequest;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryAccountResponse;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryAdjustRequest;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryTransactionResponse;
 import com.jingdong.backend.dto.order.OrderDtos.OrderResponse;
 import com.jingdong.backend.service.AdminService;
 import com.jingdong.backend.store.DatabaseStore.UserRecord;
@@ -112,6 +115,32 @@ public class AdminController {
         request.status(),
         request.sortOrder()
     )));
+  }
+
+  @GetMapping("/inventory/accounts")
+  public ApiResponse<List<InventoryAccountResponse>> inventoryAccounts(
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Boolean lowStockOnly
+  ) {
+    return ApiResponse.success(adminService.inventoryAccounts(keyword, lowStockOnly));
+  }
+
+  @GetMapping("/inventory/transactions")
+  public ApiResponse<List<InventoryTransactionResponse>> inventoryTransactions(
+      @RequestParam(required = false) String skuId,
+      @RequestParam(required = false) String orderId,
+      @RequestParam(required = false) String bizType,
+      @RequestParam(required = false) Integer limit
+  ) {
+    return ApiResponse.success(adminService.inventoryTransactions(skuId, orderId, bizType, limit));
+  }
+
+  @PostMapping("/inventory/accounts/{skuId}/adjust")
+  public ApiResponse<InventoryAccountResponse> adjustInventory(
+      @PathVariable String skuId,
+      @RequestBody InventoryAdjustRequest request
+  ) {
+    return ApiResponse.success(adminService.adjustInventory(skuId, request));
   }
 
   @GetMapping("/categories")

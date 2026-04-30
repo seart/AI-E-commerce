@@ -8,14 +8,10 @@ import com.jingdong.backend.dto.payment.PaymentDtos.PaymentPrepayRequest;
 import com.jingdong.backend.dto.payment.PaymentDtos.PaymentPrepayResponse;
 import com.jingdong.backend.dto.payment.PaymentDtos.PaymentStatusResponse;
 import com.jingdong.backend.entity.DataEntities.OrderEntity;
-import com.jingdong.backend.entity.DataEntities.OrderItemEntity;
 import com.jingdong.backend.entity.DataEntities.PaymentEntity;
-import com.jingdong.backend.entity.DataEntities.ProductEntity;
 import com.jingdong.backend.exception.BusinessException;
-import com.jingdong.backend.mapper.OrderItemMapper;
 import com.jingdong.backend.mapper.OrderMapper;
 import com.jingdong.backend.mapper.PaymentMapper;
-import com.jingdong.backend.mapper.ProductMapper;
 import com.jingdong.backend.payment.PaymentGateway;
 import com.jingdong.backend.payment.PaymentGatewayPrepayRequest;
 import com.jingdong.backend.payment.PaymentGatewayPrepayResponse;
@@ -42,27 +38,24 @@ public class PaymentService {
 
   private final ObjectMapper objectMapper;
   private final OrderMapper orderMapper;
-  private final OrderItemMapper orderItemMapper;
-  private final ProductMapper productMapper;
   private final PaymentMapper paymentMapper;
   private final AuditLogService auditLogService;
+  private final InventoryService inventoryService;
   private final Map<String, PaymentGateway> gateways;
 
   public PaymentService(
       ObjectMapper objectMapper,
       OrderMapper orderMapper,
-      OrderItemMapper orderItemMapper,
-      ProductMapper productMapper,
       PaymentMapper paymentMapper,
       AuditLogService auditLogService,
+      InventoryService inventoryService,
       List<PaymentGateway> gateways
   ) {
     this.objectMapper = objectMapper;
     this.orderMapper = orderMapper;
-    this.orderItemMapper = orderItemMapper;
-    this.productMapper = productMapper;
     this.paymentMapper = paymentMapper;
     this.auditLogService = auditLogService;
+    this.inventoryService = inventoryService;
     this.gateways = gateways.stream()
         .collect(Collectors.toUnmodifiableMap(PaymentGateway::channel, Function.identity(), (left, right) -> left));
   }
@@ -171,6 +164,7 @@ public class PaymentService {
         .set(OrderEntity::getStatusHistoryJson,
             appendStatusHistory(order.getStatusHistoryJson(), "PAID", "支付网关异步通知成功")));
     if (updated > 0 || "PAID".equals(order.getStatus())) {
+      inventoryService.confirmOrderPaid(order.getId(), "支付网关异步通知成功");
       payment.setStatus("PAID");
       payment.setTransactionId(transactionId);
       payment.setNotifyPayload(notifyPayload);
@@ -203,7 +197,7 @@ public class PaymentService {
         .set(OrderEntity::getStatusHistoryJson,
             appendStatusHistory(order.getStatusHistoryJson(), "PAYMENT_CLOSED", "支付超时自动关闭")));
     if (updated > 0) {
-      rollbackStock(orderId);
+      inventoryService.releaseOrderStock(orderId, "支付超时自动关闭");
       paymentMapper.update(null, Wrappers.<PaymentEntity>lambdaUpdate()
           .eq(PaymentEntity::getOrderId, orderId)
           .in(PaymentEntity::getStatus, List.of("CREATED", "PAYING"))
@@ -266,17 +260,6 @@ public class PaymentService {
             payment.getOutTradeNo(),
             MDC.get("requestId"),
             exception);
-      }
-    }
-  }
-
-  private void rollbackStock(String orderId) {
-    for (OrderItemEntity item : orderItemMapper.selectList(Wrappers.<OrderItemEntity>lambdaQuery()
-        .eq(OrderItemEntity::getOrderId, orderId))) {
-      ProductEntity product = productMapper.selectById(item.getProductId());
-      if (product != null) {
-        product.setStock(product.getStock() + item.getQuantity());
-        productMapper.updateById(product);
       }
     }
   }

@@ -940,6 +940,223 @@ public final class DataEntities {
     }
   }
 
+  @TableName("inventory_accounts")
+  public static class InventoryAccountEntity {
+    @TableId
+    private String skuId;
+    private Integer availableQuantity;
+    private Integer lockedQuantity;
+    private Integer soldQuantity;
+    private Integer version;
+    private LocalDateTime updatedAt;
+
+    public String getSkuId() {
+      return skuId;
+    }
+
+    public void setSkuId(String skuId) {
+      this.skuId = skuId;
+    }
+
+    public Integer getAvailableQuantity() {
+      return availableQuantity;
+    }
+
+    public void setAvailableQuantity(Integer availableQuantity) {
+      this.availableQuantity = availableQuantity;
+    }
+
+    public Integer getLockedQuantity() {
+      return lockedQuantity;
+    }
+
+    public void setLockedQuantity(Integer lockedQuantity) {
+      this.lockedQuantity = lockedQuantity;
+    }
+
+    public Integer getSoldQuantity() {
+      return soldQuantity;
+    }
+
+    public void setSoldQuantity(Integer soldQuantity) {
+      this.soldQuantity = soldQuantity;
+    }
+
+    public Integer getVersion() {
+      return version;
+    }
+
+    public void setVersion(Integer version) {
+      this.version = version;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+      return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+      this.updatedAt = updatedAt;
+    }
+  }
+
+  @TableName("inventory_transactions")
+  public static class InventoryTransactionEntity {
+    @TableId
+    private String id;
+    private String skuId;
+    private String orderId;
+    private String orderItemId;
+    private String bizType;
+    private String bizId;
+    private String direction;
+    private Integer quantity;
+    private Integer beforeAvailable;
+    private Integer afterAvailable;
+    private Integer beforeLocked;
+    private Integer afterLocked;
+    private Integer beforeSold;
+    private Integer afterSold;
+    private String reason;
+    private String requestId;
+    private LocalDateTime createdAt;
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getSkuId() {
+      return skuId;
+    }
+
+    public void setSkuId(String skuId) {
+      this.skuId = skuId;
+    }
+
+    public String getOrderId() {
+      return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+      this.orderId = orderId;
+    }
+
+    public String getOrderItemId() {
+      return orderItemId;
+    }
+
+    public void setOrderItemId(String orderItemId) {
+      this.orderItemId = orderItemId;
+    }
+
+    public String getBizType() {
+      return bizType;
+    }
+
+    public void setBizType(String bizType) {
+      this.bizType = bizType;
+    }
+
+    public String getBizId() {
+      return bizId;
+    }
+
+    public void setBizId(String bizId) {
+      this.bizId = bizId;
+    }
+
+    public String getDirection() {
+      return direction;
+    }
+
+    public void setDirection(String direction) {
+      this.direction = direction;
+    }
+
+    public Integer getQuantity() {
+      return quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+      this.quantity = quantity;
+    }
+
+    public Integer getBeforeAvailable() {
+      return beforeAvailable;
+    }
+
+    public void setBeforeAvailable(Integer beforeAvailable) {
+      this.beforeAvailable = beforeAvailable;
+    }
+
+    public Integer getAfterAvailable() {
+      return afterAvailable;
+    }
+
+    public void setAfterAvailable(Integer afterAvailable) {
+      this.afterAvailable = afterAvailable;
+    }
+
+    public Integer getBeforeLocked() {
+      return beforeLocked;
+    }
+
+    public void setBeforeLocked(Integer beforeLocked) {
+      this.beforeLocked = beforeLocked;
+    }
+
+    public Integer getAfterLocked() {
+      return afterLocked;
+    }
+
+    public void setAfterLocked(Integer afterLocked) {
+      this.afterLocked = afterLocked;
+    }
+
+    public Integer getBeforeSold() {
+      return beforeSold;
+    }
+
+    public void setBeforeSold(Integer beforeSold) {
+      this.beforeSold = beforeSold;
+    }
+
+    public Integer getAfterSold() {
+      return afterSold;
+    }
+
+    public void setAfterSold(Integer afterSold) {
+      this.afterSold = afterSold;
+    }
+
+    public String getReason() {
+      return reason;
+    }
+
+    public void setReason(String reason) {
+      this.reason = reason;
+    }
+
+    public String getRequestId() {
+      return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+      this.requestId = requestId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+      return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+      this.createdAt = createdAt;
+    }
+  }
+
   @TableName("addresses")
   public static class AddressEntity {
     @TableId

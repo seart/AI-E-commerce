@@ -206,6 +206,43 @@ export interface ProductSpuUpsertRequest {
   skus?: ProductSkuUpsertRequest[]
 }
 
+export interface InventoryAccount {
+  skuId: string
+  spuId?: string | null
+  skuCode: string
+  productName: string
+  merchantId: string
+  merchantName: string
+  categoryId: string
+  status: string
+  availableQuantity: number
+  lockedQuantity: number
+  soldQuantity: number
+  totalQuantity: number
+  updatedAt?: string | null
+}
+
+export interface InventoryTransaction {
+  id: string
+  skuId: string
+  productName: string
+  orderId?: string | null
+  orderItemId?: string | null
+  bizType: string
+  bizId: string
+  direction: string
+  quantity: number
+  beforeAvailable: number
+  afterAvailable: number
+  beforeLocked: number
+  afterLocked: number
+  beforeSold: number
+  afterSold: number
+  reason: string
+  requestId?: string | null
+  createdAt: string
+}
+
 export interface Order {
   id: string
   orderNo: string

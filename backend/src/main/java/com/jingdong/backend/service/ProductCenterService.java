@@ -77,6 +77,7 @@ public class ProductCenterService {
   private final MerchantMapper merchantMapper;
   private final MerchantCategoryMapper merchantCategoryMapper;
   private final AuditLogService auditLogService;
+  private final InventoryService inventoryService;
 
   public ProductCenterService(
       ObjectMapper objectMapper,
@@ -88,7 +89,8 @@ public class ProductCenterService {
       ProductMapper productMapper,
       MerchantMapper merchantMapper,
       MerchantCategoryMapper merchantCategoryMapper,
-      AuditLogService auditLogService
+      AuditLogService auditLogService,
+      InventoryService inventoryService
   ) {
     this.objectMapper = objectMapper;
     this.categoryMapper = categoryMapper;
@@ -100,6 +102,7 @@ public class ProductCenterService {
     this.merchantMapper = merchantMapper;
     this.merchantCategoryMapper = merchantCategoryMapper;
     this.auditLogService = auditLogService;
+    this.inventoryService = inventoryService;
   }
 
   public List<CategoryAdminResponse> categories() {
@@ -468,6 +471,11 @@ public class ProductCenterService {
     sku.setStatus(normalizeSkuStatus(request.status()));
     sku.setSortOrder(value(sku.getSortOrder(), 100));
     upsertSku(sku);
+    inventoryService.syncAvailableFromProductUpdate(
+        skuId,
+        request.stock(),
+        "商品中心保存 SKU 库存"
+    );
     return productMapper.selectById(skuId);
   }
 

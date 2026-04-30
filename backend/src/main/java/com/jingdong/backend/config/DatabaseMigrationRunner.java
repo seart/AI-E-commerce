@@ -46,8 +46,10 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     createAuditLogs();
     createPayments();
     createProductCenterTables();
+    createInventoryTables();
     seedProductCenterDictionaries();
     migrateLegacyProductsToSpu();
+    seedInventoryAccounts();
     seedAdmin();
   }
 
@@ -152,6 +154,48 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         """);
   }
 
+  private void createInventoryTables() {
+    jdbcTemplate.execute("""
+        create table if not exists inventory_accounts (
+          sku_id varchar(64) primary key,
+          available_quantity int not null default 0,
+          locked_quantity int not null default 0,
+          sold_quantity int not null default 0,
+          version int not null default 0,
+          updated_at timestamp not null default current_timestamp on update current_timestamp,
+          constraint fk_inventory_accounts_sku foreign key (sku_id) references products(id) on delete cascade,
+          index idx_inventory_accounts_available (available_quantity),
+          index idx_inventory_accounts_updated_at (updated_at)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+    jdbcTemplate.execute("""
+        create table if not exists inventory_transactions (
+          id varchar(64) primary key,
+          sku_id varchar(64) not null,
+          order_id varchar(64) null,
+          order_item_id varchar(64) null,
+          biz_type varchar(60) not null,
+          biz_id varchar(120) not null,
+          direction varchar(40) not null,
+          quantity int not null,
+          before_available int not null default 0,
+          after_available int not null default 0,
+          before_locked int not null default 0,
+          after_locked int not null default 0,
+          before_sold int not null default 0,
+          after_sold int not null default 0,
+          reason varchar(255) not null default '',
+          request_id varchar(80) null,
+          created_at timestamp not null default current_timestamp,
+          constraint fk_inventory_transactions_sku foreign key (sku_id) references products(id) on delete cascade,
+          unique key uk_inventory_transactions_biz_sku (biz_type, biz_id, sku_id),
+          index idx_inventory_transactions_sku_created (sku_id, created_at),
+          index idx_inventory_transactions_order (order_id),
+          index idx_inventory_transactions_biz_type (biz_type)
+        ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci
+        """);
+  }
+
   private void seedProductCenterDictionaries() {
     jdbcTemplate.update("""
         insert ignore into brands (id, name, logo, description, status, sort_order)
@@ -206,6 +250,16 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
           productId
       );
     }
+  }
+
+  private void seedInventoryAccounts() {
+    jdbcTemplate.update("""
+        insert ignore into inventory_accounts (
+          sku_id, available_quantity, locked_quantity, sold_quantity, version
+        )
+        select id, greatest(stock, 0), 0, 0, 0
+        from products
+        """);
   }
 
   private void createAuditLogs() {

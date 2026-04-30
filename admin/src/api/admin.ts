@@ -7,6 +7,8 @@ import type {
   Category,
   CategoryUpsertRequest,
   DashboardResponse,
+  InventoryAccount,
+  InventoryTransaction,
   Merchant,
   Order,
   Product,
@@ -127,6 +129,20 @@ export function saveProductSku(spuId: string, sku: ProductSkuUpsertRequest) {
 
 export function updateProductSkuStatus(spuId: string, skuId: string, status: ProductSku['status']) {
   return http.patch<ProductSku, ProductSku>(`/admin/product-spus/${spuId}/skus/${skuId}/status`, { status })
+}
+
+export function getInventoryAccounts(params: { keyword?: string; lowStockOnly?: boolean } = {}) {
+  return http.get<InventoryAccount[], InventoryAccount[]>('/admin/inventory/accounts', { params })
+}
+
+export function getInventoryTransactions(
+  params: { skuId?: string; orderId?: string; bizType?: string; limit?: number } = {},
+) {
+  return http.get<InventoryTransaction[], InventoryTransaction[]>('/admin/inventory/transactions', { params })
+}
+
+export function adjustInventory(skuId: string, payload: { delta: number; reason: string }) {
+  return http.post<InventoryAccount, InventoryAccount>(`/admin/inventory/accounts/${skuId}/adjust`, payload)
 }
 
 export function getOrders() {

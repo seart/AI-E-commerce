@@ -48,6 +48,7 @@ import com.jingdong.backend.mapper.PaymentMapper;
 import com.jingdong.backend.mapper.ProductMapper;
 import com.jingdong.backend.mapper.ProductSpuMapper;
 import com.jingdong.backend.mapper.UserMapper;
+import com.jingdong.backend.service.InventoryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -86,6 +87,7 @@ public class DatabaseStore {
   private final OrderItemMapper orderItemMapper;
   private final PaymentMapper paymentMapper;
   private final AuditLogMapper auditLogMapper;
+  private final InventoryService inventoryService;
 
   public DatabaseStore(
       ObjectMapper objectMapper,
@@ -102,7 +104,8 @@ public class DatabaseStore {
       OrderMapper orderMapper,
       OrderItemMapper orderItemMapper,
       PaymentMapper paymentMapper,
-      AuditLogMapper auditLogMapper
+      AuditLogMapper auditLogMapper,
+      InventoryService inventoryService
   ) {
     this.objectMapper = objectMapper;
     this.userMapper = userMapper;
@@ -119,6 +122,7 @@ public class DatabaseStore {
     this.orderItemMapper = orderItemMapper;
     this.paymentMapper = paymentMapper;
     this.auditLogMapper = auditLogMapper;
+    this.inventoryService = inventoryService;
   }
 
   public Optional<UserRecord> findUserByMobile(String mobile) {
@@ -476,11 +480,7 @@ public class DatabaseStore {
       orderItemMapper.insert(item);
     }
 
-    for (CheckoutItemRequest item : items) {
-      ProductEntity product = product(item.purchasableId());
-      product.setStock(product.getStock() - item.quantity());
-      productMapper.updateById(product);
-    }
+    inventoryService.lockOrderStock(order.getId(), "订单创建锁定库存");
 
     List<String> purchasedProductIds = items.stream()
         .map(CheckoutItemRequest::purchasableId)
@@ -499,32 +499,44 @@ public class DatabaseStore {
     ensureUser(userId);
     OrderEntity order = ownedOrder(userId, orderId);
     if ("PENDING_PAYMENT".equals(order.getStatus())) {
-      rollbackStock(orderId);
       LocalDateTime now = LocalDateTime.now();
-      order.setStatus("PAYMENT_CLOSED");
-      order.setStatusText("支付关闭");
-      order.setPaymentStatus("CLOSED");
-      order.setClosedAt(now);
-      order.setCancelReason(reason);
-      order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "PAYMENT_CLOSED", reason));
-      orderMapper.updateById(order);
+      int updated = orderMapper.update(null, Wrappers.<OrderEntity>lambdaUpdate()
+          .eq(OrderEntity::getId, orderId)
+          .eq(OrderEntity::getStatus, "PENDING_PAYMENT")
+          .set(OrderEntity::getStatus, "PAYMENT_CLOSED")
+          .set(OrderEntity::getStatusText, "支付关闭")
+          .set(OrderEntity::getPaymentStatus, "CLOSED")
+          .set(OrderEntity::getClosedAt, now)
+          .set(OrderEntity::getCancelReason, reason)
+          .set(OrderEntity::getStatusHistoryJson,
+              appendStatusHistory(order.getStatusHistoryJson(), "PAYMENT_CLOSED", reason)));
+      if (updated <= 0) {
+        throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+      }
       paymentMapper.update(null, Wrappers.<PaymentEntity>lambdaUpdate()
           .eq(PaymentEntity::getOrderId, orderId)
           .in(PaymentEntity::getStatus, List.of("CREATED", "PAYING"))
           .set(PaymentEntity::getStatus, "CLOSED")
           .set(PaymentEntity::getClosedAt, now));
-      return toOrderResponse(order);
+      inventoryService.releaseOrderStock(orderId, reason);
+      return toOrderResponse(orderMapper.selectById(orderId));
     }
     if (!List.of("PREPARING").contains(order.getStatus())) {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
     }
-    rollbackStock(orderId);
-    order.setStatus("CANCELED");
-    order.setStatusText("已取消");
-    order.setCancelReason(reason);
-    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "CANCELED", reason));
-    orderMapper.updateById(order);
-    return toOrderResponse(order);
+    int updated = orderMapper.update(null, Wrappers.<OrderEntity>lambdaUpdate()
+        .eq(OrderEntity::getId, orderId)
+        .eq(OrderEntity::getStatus, "PREPARING")
+        .set(OrderEntity::getStatus, "CANCELED")
+        .set(OrderEntity::getStatusText, "已取消")
+        .set(OrderEntity::getCancelReason, reason)
+        .set(OrderEntity::getStatusHistoryJson,
+            appendStatusHistory(order.getStatusHistoryJson(), "CANCELED", reason)));
+    if (updated <= 0) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    inventoryService.restockSoldStock(orderId, reason);
+    return toOrderResponse(orderMapper.selectById(orderId));
   }
 
   @Transactional
@@ -534,12 +546,18 @@ public class DatabaseStore {
     if (!List.of("PAID", "PREPARING", "DELIVERING", "COMPLETED").contains(order.getStatus())) {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
     }
-    order.setStatus("REFUND_REQUESTED");
-    order.setStatusText("退款申请中");
-    order.setRefundReason(reason);
-    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), "REFUND_REQUESTED", reason));
-    orderMapper.updateById(order);
-    return toOrderResponse(order);
+    int updated = orderMapper.update(null, Wrappers.<OrderEntity>lambdaUpdate()
+        .eq(OrderEntity::getId, orderId)
+        .eq(OrderEntity::getStatus, order.getStatus())
+        .set(OrderEntity::getStatus, "REFUND_REQUESTED")
+        .set(OrderEntity::getStatusText, "退款申请中")
+        .set(OrderEntity::getRefundReason, reason)
+        .set(OrderEntity::getStatusHistoryJson,
+            appendStatusHistory(order.getStatusHistoryJson(), "REFUND_REQUESTED", reason)));
+    if (updated <= 0) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    return toOrderResponse(orderMapper.selectById(orderId));
   }
 
   public Map<String, Object> dashboardSummary() {
@@ -594,7 +612,13 @@ public class DatabaseStore {
     } else {
       productMapper.updateById(product);
     }
-    return productMapper.selectById(product.getId());
+    ProductEntity saved = productMapper.selectById(product.getId());
+    inventoryService.syncAvailableFromProductUpdate(
+        saved.getId(),
+        saved.getStock() == null ? 0 : saved.getStock(),
+        "后台旧商品接口同步库存"
+    );
+    return saved;
   }
 
   public List<OrderResponse> adminOrders() {
@@ -612,20 +636,27 @@ public class DatabaseStore {
     if (!canMove(order.getStatus(), nextStatus)) {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
     }
-    if ("REFUNDED".equals(nextStatus)) {
-      rollbackStock(orderId);
-    }
-    order.setStatus(nextStatus);
-    order.setStatusText(statusText(nextStatus));
+    var update = Wrappers.<OrderEntity>lambdaUpdate()
+        .eq(OrderEntity::getId, orderId)
+        .eq(OrderEntity::getStatus, order.getStatus())
+        .set(OrderEntity::getStatus, nextStatus)
+        .set(OrderEntity::getStatusText, statusText(nextStatus))
+        .set(OrderEntity::getStatusHistoryJson,
+            appendStatusHistory(order.getStatusHistoryJson(), nextStatus, reason));
     if ("CANCELED".equals(nextStatus)) {
-      order.setCancelReason(reason);
+      update.set(OrderEntity::getCancelReason, reason);
     }
     if ("REFUNDED".equals(nextStatus)) {
-      order.setRefundReason(reason);
+      update.set(OrderEntity::getRefundReason, reason);
     }
-    order.setStatusHistoryJson(appendStatusHistory(order.getStatusHistoryJson(), nextStatus, reason));
-    orderMapper.updateById(order);
-    return toOrderResponse(order);
+    int updated = orderMapper.update(null, update);
+    if (updated <= 0) {
+      throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+    }
+    if ("REFUNDED".equals(nextStatus)) {
+      inventoryService.restockSoldStock(orderId, reason);
+    }
+    return toOrderResponse(orderMapper.selectById(orderId));
   }
 
   public List<UserRecord> adminUsers() {
@@ -974,17 +1005,6 @@ public class DatabaseStore {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
     }
     return order;
-  }
-
-  private void rollbackStock(String orderId) {
-    for (OrderItemEntity item : orderItemMapper.selectList(Wrappers.<OrderItemEntity>lambdaQuery()
-        .eq(OrderItemEntity::getOrderId, orderId))) {
-      ProductEntity product = productMapper.selectById(item.getProductId());
-      if (product != null) {
-        product.setStock(product.getStock() + item.getQuantity());
-        productMapper.updateById(product);
-      }
-    }
   }
 
   private boolean canMove(String current, String next) {

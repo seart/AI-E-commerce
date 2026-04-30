@@ -158,6 +158,47 @@ CREATE TABLE IF NOT EXISTS products (
   INDEX idx_products_status_sort (status, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS inventory_accounts (
+  sku_id VARCHAR(64) PRIMARY KEY,
+  available_quantity INT NOT NULL DEFAULT 0,
+  locked_quantity INT NOT NULL DEFAULT 0,
+  sold_quantity INT NOT NULL DEFAULT 0,
+  version INT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inventory_accounts_sku
+    FOREIGN KEY (sku_id) REFERENCES products(id)
+    ON DELETE CASCADE,
+  INDEX idx_inventory_accounts_available (available_quantity),
+  INDEX idx_inventory_accounts_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+  id VARCHAR(64) PRIMARY KEY,
+  sku_id VARCHAR(64) NOT NULL,
+  order_id VARCHAR(64) NULL,
+  order_item_id VARCHAR(64) NULL,
+  biz_type VARCHAR(60) NOT NULL,
+  biz_id VARCHAR(120) NOT NULL,
+  direction VARCHAR(40) NOT NULL,
+  quantity INT NOT NULL,
+  before_available INT NOT NULL DEFAULT 0,
+  after_available INT NOT NULL DEFAULT 0,
+  before_locked INT NOT NULL DEFAULT 0,
+  after_locked INT NOT NULL DEFAULT 0,
+  before_sold INT NOT NULL DEFAULT 0,
+  after_sold INT NOT NULL DEFAULT 0,
+  reason VARCHAR(255) NOT NULL DEFAULT '',
+  request_id VARCHAR(80) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_inventory_transactions_sku
+    FOREIGN KEY (sku_id) REFERENCES products(id)
+    ON DELETE CASCADE,
+  UNIQUE KEY uk_inventory_transactions_biz_sku (biz_type, biz_id, sku_id),
+  INDEX idx_inventory_transactions_sku_created (sku_id, created_at),
+  INDEX idx_inventory_transactions_order (order_id),
+  INDEX idx_inventory_transactions_biz_type (biz_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS addresses (
   id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,

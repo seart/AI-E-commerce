@@ -19,6 +19,9 @@ import com.jingdong.backend.dto.admin.AdminDtos.SpecGroupAdminResponse;
 import com.jingdong.backend.dto.admin.AdminDtos.SpecGroupUpsertRequest;
 import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionAdminResponse;
 import com.jingdong.backend.dto.admin.AdminDtos.SpecOptionUpsertRequest;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryAccountResponse;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryAdjustRequest;
+import com.jingdong.backend.dto.inventory.InventoryDtos.InventoryTransactionResponse;
 import com.jingdong.backend.dto.order.OrderDtos.OrderResponse;
 import com.jingdong.backend.entity.DataEntities.AuditLogEntity;
 import com.jingdong.backend.entity.DataEntities.MerchantEntity;
@@ -38,15 +41,18 @@ public class AdminService {
   private final DatabaseStore store;
   private final AuditLogService auditLogService;
   private final ProductCenterService productCenterService;
+  private final InventoryService inventoryService;
 
   public AdminService(
       DatabaseStore store,
       AuditLogService auditLogService,
-      ProductCenterService productCenterService
+      ProductCenterService productCenterService,
+      InventoryService inventoryService
   ) {
     this.store = store;
     this.auditLogService = auditLogService;
     this.productCenterService = productCenterService;
+    this.inventoryService = inventoryService;
   }
 
   public Map<String, Object> dashboard() {
@@ -84,6 +90,29 @@ public class AdminService {
 
   public ProductAdminResponse saveProduct(ProductUpsertRequest request) {
     return productCenterService.saveLegacyProduct(request);
+  }
+
+  public List<InventoryAccountResponse> inventoryAccounts(String keyword, Boolean lowStockOnly) {
+    return inventoryService.accounts(keyword, lowStockOnly);
+  }
+
+  public List<InventoryTransactionResponse> inventoryTransactions(
+      String skuId,
+      String orderId,
+      String bizType,
+      Integer limit
+  ) {
+    return inventoryService.transactions(skuId, orderId, bizType, limit);
+  }
+
+  public InventoryAccountResponse adjustInventory(String skuId, InventoryAdjustRequest request) {
+    InventoryAccountResponse response = inventoryService.adjustAvailable(
+        skuId,
+        request.delta() == null ? 0 : request.delta(),
+        request.reason()
+    );
+    auditLogService.record("ADMIN_ADJUST_INVENTORY", "SKU", skuId, request.reason());
+    return response;
   }
 
   public List<CategoryAdminResponse> categories() {

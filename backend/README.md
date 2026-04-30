@@ -51,7 +51,8 @@ Authorization: Bearer <accessToken>
 - 已实现首页、商家详情、商家搜索、购物车、地址、订单、个人中心接口。
 - 已实现商品中心第一阶段后端能力：类目、品牌、规格组/规格值、SPU/SKU 数据模型，后台商品中心接口，用户端商品搜索和商品详情接口。
 - 旧 `/admin/products` 单商品接口继续兼容，内部会转换为单 SPU + 单 SKU；购物车和下单继续兼容 `productId`，同时支持 `skuId`。
-- 下单接口会先创建 `PENDING_PAYMENT` 待支付订单并扣减库存，支付成功回调后进入 `PAID` / `支付成功`。
+- 已实现库存中心第一阶段能力：SKU 库存账户、可售/锁定/已售库存、库存流水、下单锁定、支付确认售出、待支付释放、退款回补和后台库存调整。
+- 下单接口会先创建 `PENDING_PAYMENT` 待支付订单并锁定库存，支付成功回调后进入 `PAID` / `支付成功` 并确认售出。
 - 已接入 `cn.felord:payment-spring-boot-starter:1.0.20.RELEASE`，支付网关通过配置启用；本地无真实支付凭证时建议设置 `PAYMENT_REAL_GATEWAY_ENABLED=false` 使用测试替身或模拟链路。
 - 支付超时关单通过 RocketMQ 延迟消息触发；未配置 RocketMQ 地址时可先保持 `PAYMENT_ROCKETMQ_ENABLED=false` 做本地测试。
 - 已实现订单状态闭环：`PAID -> PREPARING -> DELIVERING -> COMPLETED`，并支持待支付取消、退款申请、退款确认。
@@ -59,6 +60,7 @@ Authorization: Bearer <accessToken>
 - 已实现 PBKDF2 密码哈希；历史明文密码会在首次成功登录后自动升级。
 - 已实现审计日志、请求 ID、结构化请求日志与健康检查 `/api/health`。
 - 用户、商家、商品/SPU/SKU、购物车、地址、订单、支付单和审计日志均已落 MySQL。
+- 库存账户和库存流水已落 MySQL；`products.stock` 继续作为可售库存兼容字段，由库存中心同步维护。
 - 表结构和初始化数据使用 Spring Boot `schema.sql` / `data.sql` 轻量初始化；存量库字段补齐由 `DatabaseMigrationRunner` 在启动时完成，不使用 Flyway。
 
 ## 商品中心接口概览
@@ -78,6 +80,14 @@ Authorization: Bearer <accessToken>
 - `POST/PUT/PATCH /api/admin/product-spus/{spuId}/skus...`
 
 这些后台接口继续由 Spring Security 限制为 `ADMIN` / `OPERATOR` 访问，并写入审计日志。
+
+库存中心接口：
+
+- `GET /api/admin/inventory/accounts?keyword=&lowStockOnly=`：库存账户列表。
+- `GET /api/admin/inventory/transactions?skuId=&orderId=&bizType=&limit=`：库存流水列表。
+- `POST /api/admin/inventory/accounts/{skuId}/adjust`：后台调整 SKU 可售库存，必须传调整原因。
+
+订单、支付和退款链路通过库存流水业务键保证同一订单同一 SKU 的锁定、释放、售出确认和退款回补只执行一次。
 
 ## 独立后台项目
 
