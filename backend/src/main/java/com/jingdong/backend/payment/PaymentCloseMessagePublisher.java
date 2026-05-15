@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PaymentCloseMessagePublisher {
+  // 订单创建后投递延迟关单消息；未启用 RocketMQ 时直接跳过，方便本地联调。
   private static final Logger log = LoggerFactory.getLogger(PaymentCloseMessagePublisher.class);
 
   private final PaymentProperties paymentProperties;
@@ -25,6 +26,7 @@ public class PaymentCloseMessagePublisher {
   }
 
   public void publish(String orderId, LocalDateTime expireAt) {
+    // RocketMQ 开关由 app.payment.rocketmq.enabled 控制。
     if (!paymentProperties.getRocketmq().isEnabled()) {
       return;
     }

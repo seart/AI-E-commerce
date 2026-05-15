@@ -3,6 +3,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.payment")
 public class PaymentProperties {
+  // 支付相关配置集中绑定 app.payment.*，可通过环境变量覆盖。
   private int expireMinutes = 15;
   private boolean sdkEnabled;
   private boolean realGatewayEnabled = true;
@@ -59,6 +60,7 @@ public class PaymentProperties {
   }
 
   public static class RocketMq {
+    // 支付超时关单消息配置，默认关闭，联调或生产按需开启。
     private boolean enabled;
     private String closeTopic = "jingdong-payment-close";
     private String closeConsumerGroup = "jingdong-payment-close-consumer";

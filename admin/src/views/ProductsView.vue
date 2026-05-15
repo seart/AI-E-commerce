@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 商品管理页：组合商品中心、类目、品牌、规格和库存几个子面板。
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {

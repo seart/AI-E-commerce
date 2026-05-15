@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnProperty(prefix = "app.payment", name = "real-gateway-enabled", havingValue = "false")
 public class SimulatedPaymentGatewayConfig {
+  // 未接入真实支付凭证时启用模拟网关，前端仍能跑完整支付流程。
   @Bean
   PaymentGateway simulatedAlipayQrPaymentGateway() {
     return new SimulatedPaymentGateway("ALIPAY_QR");

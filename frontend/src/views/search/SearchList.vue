@@ -1,4 +1,5 @@
 <template>
+  <!-- 搜索结果页：根据关键词展示商家和商品结果。 -->
   <div class="search-list">
     <div class="search-header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

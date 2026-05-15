@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 规格管理面板：维护规格组和规格值，供 SKU 组合使用。
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Edit, Plus, Refresh, SwitchButton } from '@element-plus/icons-vue'

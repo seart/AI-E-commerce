@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 品牌管理面板：维护品牌名称、描述、状态和排序。
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Edit, Plus, Refresh, SwitchButton } from '@element-plus/icons-vue'

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 类目管理面板：首页频道和商品类目共用同一套管理能力。
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Edit, Plus, Refresh, SwitchButton } from '@element-plus/icons-vue'

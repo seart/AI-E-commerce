@@ -47,6 +47,7 @@ public class AuthService {
   }
 
   public UserSessionResponse login(LoginRequest request, String clientIp) {
+    // 同时按手机号和 IP 限流，降低撞库/暴力登录风险。
     rateLimiterService.check("login:" + request.mobile(), 10, Duration.ofMinutes(1));
     rateLimiterService.check("login-ip:" + clientIp, 50, Duration.ofMinutes(1));
     UserRecord user = store.findUserByMobile(request.mobile())
@@ -55,6 +56,7 @@ public class AuthService {
     if (!"ACTIVE".equals(user.status())) {
       throw new BusinessException(ErrorCode.USER_DISABLED);
     }
+    // 兼容历史明文密码：登录成功后立刻升级为 PBKDF2 哈希。
     if (!passwordHasher.isHashed(user.password())) {
       store.updatePassword(user.id(), passwordHasher.hash(request.password()));
     }
@@ -75,6 +77,7 @@ public class AuthService {
   public SuccessResponse logout(String authorization) {
     String token = bearerToken(authorization);
     if (token != null) {
+      // 退出登录时同时拉黑完整 token 和 jti，访问令牌过期前也不能继续使用。
       TokenClaims claims = jwtTokenService.parseClaims(token);
       tokenBlacklistService.blacklist(token, claims.expiresAt());
       tokenBlacklistService.blacklistJti(claims.jti(), claims.expiresAt());
@@ -84,6 +87,7 @@ public class AuthService {
   }
 
   public UserSessionResponse refresh(RefreshTokenRequest request) {
+    // 刷新令牌也要查黑名单，避免 logout 后还能继续换新 access token。
     if (tokenBlacklistService.isBlacklisted(request.refreshToken())) {
       throw new BusinessException(ErrorCode.UNAUTHORIZED);
     }
@@ -109,6 +113,7 @@ public class AuthService {
   }
 
   private UserSessionResponse session(UserRecord user) {
+    // 登录/刷新成功统一从这里生成前端需要的会话结构。
     return new UserSessionResponse(
         jwtTokenService.createAccessToken(user.id(), user.role()),
         jwtTokenService.createRefreshToken(user.id(), user.role()),

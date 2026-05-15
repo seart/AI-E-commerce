@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 商品列表面板：展示 SPU 列表，并提供查看、编辑和上下架操作。
 import { computed, ref } from 'vue'
 import { Edit, Plus, Refresh, Search, SwitchButton, View } from '@element-plus/icons-vue'
 import type { Category, Merchant, ProductSpu, ProductStatus } from '@/types/domain'

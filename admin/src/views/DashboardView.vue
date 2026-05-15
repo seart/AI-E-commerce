@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 数据概览页：展示后台首页的核心经营指标。
 import { onMounted, ref } from 'vue'
 import { getDashboard } from '@/api/admin'
 import type { DashboardResponse } from '@/types/domain'

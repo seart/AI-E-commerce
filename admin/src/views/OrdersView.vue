@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 订单管理页：后台推进订单状态，并处理退款确认。
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getOrders, updateOrderStatus } from '@/api/admin'

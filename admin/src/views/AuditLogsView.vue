@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 审计日志页：按操作者、动作和时间范围查询后台关键操作记录。
 import { onMounted, reactive, ref } from 'vue'
 import { getAuditLogs } from '@/api/admin'
 import type { AuditLog } from '@/types/domain'

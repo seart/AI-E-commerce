@@ -1,4 +1,5 @@
 <template>
+  <!-- 注册页：创建用户账号，注册成功后引导回登录页。 -->
   <div class="register-page">
     <div class="register-card">
       <div class="register-avatar" aria-hidden="true">

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class DatabaseMigrationRunner implements ApplicationRunner {
+  // 轻量启动迁移：兼容存量表结构，不引入 Flyway。
   private final JdbcTemplate jdbcTemplate;
 
   public DatabaseMigrationRunner(JdbcTemplate jdbcTemplate) {
@@ -17,6 +18,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
 
   @Override
   public void run(ApplicationArguments args) {
+    // 应用启动时补齐新增字段、索引、表和初始化数据，重复执行保持幂等。
     addColumn("users", "role", "VARCHAR(40) NOT NULL DEFAULT 'CUSTOMER'");
     addColumn("users", "status", "VARCHAR(40) NOT NULL DEFAULT 'ACTIVE'");
     addColumn("users", "last_login_at", "TIMESTAMP NULL");
@@ -54,6 +56,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
   }
 
   private void addColumn(String table, String column, String definition) {
+    // 先查 information_schema，字段不存在才执行 alter table。
     Integer count = jdbcTemplate.queryForObject(
         """
         select count(*)
@@ -72,6 +75,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
   }
 
   private void addIndex(String table, String indexName, String columns) {
+    // 索引同样按名称幂等创建，避免重复启动报错。
     Integer count = jdbcTemplate.queryForObject(
         """
         select count(*)
@@ -199,7 +203,7 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
   private void seedProductCenterDictionaries() {
     jdbcTemplate.update("""
         insert ignore into brands (id, name, logo, description, status, sort_order)
-        values ('brand_jd', '京东自营', '', '平台自营品牌', 'ACTIVE', 10)
+        values ('brand_jd', '自营', '', '平台自营品牌', 'ACTIVE', 10)
         """);
     jdbcTemplate.update("""
         insert ignore into spec_groups (id, name, status, sort_order)

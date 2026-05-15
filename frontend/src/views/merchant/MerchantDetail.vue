@@ -1,4 +1,5 @@
 <template>
+  <!-- 商家详情页：展示商家信息和该商家的商品列表。 -->
   <div class="merchant-detail">
     <div class="merchant-header" :style="{ background: detail?.merchant.heroColor ?? defaultHero }">
       <div class="header-top">

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/addresses")
 public class AddressController {
+  // 用户收货地址接口，负责地址列表、新增和编辑。
   private final AddressService addressService;
 
   public AddressController(AddressService addressService) {

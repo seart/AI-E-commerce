@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 库存面板：展示 SKU 库存账户和库存流水，并支持后台手工调整可售库存。
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { InventoryAccount, InventoryTransaction } from '@/types/domain'

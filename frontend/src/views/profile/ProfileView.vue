@@ -1,4 +1,5 @@
 <template>
+  <!-- 个人中心页：展示会员信息、订单入口和地址管理入口。 -->
   <div class="profile-view">
     <div class="profile-header">
       <div class="user-info">

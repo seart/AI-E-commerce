@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class InventoryService {
+  // 库存中心维护三类数量：available 可售、locked 已锁定、sold 已售。
+  // 订单、支付、退款流程只通过这里改库存，避免多个业务直接改表造成重复扣减。
   private static final int LOW_STOCK_THRESHOLD = 5;
 
   private final InventoryAccountMapper inventoryAccountMapper;
@@ -50,6 +52,7 @@ public class InventoryService {
   }
 
   public List<InventoryAccountResponse> accounts(String keyword, Boolean lowStockOnly) {
+    // 列表查询前补齐历史商品的库存账户，兼容存量 products.stock 数据。
     ensureAllAccounts();
     String normalized = normalize(keyword);
     boolean lowOnly = Boolean.TRUE.equals(lowStockOnly);
@@ -83,6 +86,7 @@ public class InventoryService {
 
   @Transactional
   public void lockOrderStock(String orderId, String reason) {
+    // 下单时：可售库存 -> 锁定库存。
     for (OrderItemEntity item : orderItems(orderId)) {
       applyLock(orderId, item, reason);
     }
@@ -90,6 +94,7 @@ public class InventoryService {
 
   @Transactional
   public void confirmOrderPaid(String orderId, String reason) {
+    // 支付成功时：锁定库存 -> 已售库存。
     for (OrderItemEntity item : orderItems(orderId)) {
       applyConfirm(orderId, item, reason);
     }
@@ -97,6 +102,7 @@ public class InventoryService {
 
   @Transactional
   public void releaseOrderStock(String orderId, String reason) {
+    // 待支付订单取消/超时关闭时：锁定库存 -> 可售库存。
     for (OrderItemEntity item : orderItems(orderId)) {
       applyRelease(orderId, item, reason);
     }
@@ -104,6 +110,7 @@ public class InventoryService {
 
   @Transactional
   public void restockSoldStock(String orderId, String reason) {
+    // 退款确认时：已售库存 -> 可售库存。
     for (OrderItemEntity item : orderItems(orderId)) {
       applyRestock(orderId, item, reason);
     }
@@ -111,6 +118,7 @@ public class InventoryService {
 
   @Transactional
   public InventoryAccountResponse adjustAvailable(String skuId, int delta, String reason) {
+    // 后台人工调整只改可售库存，并强制要求原因，便于审计追踪。
     if (delta == 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "库存调整数量不能为 0");
     }
@@ -148,6 +156,7 @@ public class InventoryService {
 
   @Transactional
   public void syncAvailableFromProductUpdate(String skuId, int availableQuantity, String reason) {
+    // 商品中心编辑 SKU 库存时，同步库存账户和旧 products.stock 兼容字段。
     if (availableQuantity < 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "库存不能小于 0");
     }
@@ -181,6 +190,7 @@ public class InventoryService {
   }
 
   private void applyLock(String orderId, OrderItemEntity item, String reason) {
+    // ORDER_LOCK 以 orderId + skuId 唯一，重复调用不会重复锁库存。
     int quantity = positiveQuantity(item);
     InventoryAccountEntity before = ensureAccount(item.getProductId());
     InventoryTransactionEntity transaction = beginTransaction(
@@ -214,6 +224,7 @@ public class InventoryService {
   }
 
   private void applyConfirm(String orderId, OrderItemEntity item, String reason) {
+    // PAYMENT_CONFIRM 把锁定库存转已售；如果历史订单没有锁定流水，会降级只增加已售。
     int quantity = positiveQuantity(item);
     InventoryAccountEntity before = ensureAccount(item.getProductId());
     InventoryTransactionEntity transaction = beginTransaction(
@@ -249,6 +260,7 @@ public class InventoryService {
   }
 
   private void applyRelease(String orderId, OrderItemEntity item, String reason) {
+    // ORDER_RELEASE 释放锁定库存；重复释放会被库存流水唯一键拦住。
     int quantity = positiveQuantity(item);
     InventoryAccountEntity before = ensureAccount(item.getProductId());
     InventoryTransactionEntity transaction = beginTransaction(
@@ -282,6 +294,7 @@ public class InventoryService {
   }
 
   private void applyRestock(String orderId, OrderItemEntity item, String reason) {
+    // ORDER_RESTOCK 是退款后的回补动作，只应在确认退款时执行一次。
     int quantity = positiveQuantity(item);
     InventoryAccountEntity before = ensureAccount(item.getProductId());
     InventoryTransactionEntity transaction = beginTransaction(
@@ -315,6 +328,7 @@ public class InventoryService {
   }
 
   private InventoryAccountEntity ensureAccount(String skuId) {
+    // 库存账户按 skuId 建立；没有账户时从商品表 stock 字段初始化。
     if (skuId == null || skuId.isBlank()) {
       throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
     }
@@ -355,6 +369,7 @@ public class InventoryService {
       String reason,
       InventoryAccountEntity before
   ) {
+    // 每次库存变更先写流水初始值；若唯一键冲突，说明该业务动作已经处理过。
     InventoryTransactionEntity transaction = new InventoryTransactionEntity();
     transaction.setId(uid("invtx"));
     transaction.setSkuId(skuId);
@@ -382,6 +397,7 @@ public class InventoryService {
   }
 
   private void finishTransaction(InventoryTransactionEntity transaction, InventoryAccountEntity after) {
+    // 业务库存更新后回填流水的 after 快照，形成完整审计记录。
     if (transaction == null) {
       return;
     }
@@ -407,6 +423,7 @@ public class InventoryService {
   }
 
   private void syncProductAvailableDelta(String skuId, int delta) {
+    // 旧接口仍读取 products.stock，所以库存中心变更后要同步这个兼容字段。
     if (delta == 0) {
       return;
     }

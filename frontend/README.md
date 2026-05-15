@@ -1,4 +1,4 @@
-# 京东企业版商城前端
+# 企业版商城前端
 
 这是一个基于 `Vue 3 + Vite + Pinia + Element Plus` 的移动端电商前端项目，已经从“页面 demo”调整为更适合企业交付的 `API-first` 结构。
 

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PasswordHasher {
+  // 密码使用 PBKDF2 存储，格式为 {pbkdf2}迭代次数:盐:哈希。
   private static final String PREFIX = "{pbkdf2}";
   private static final int ITERATIONS = 120_000;
   private static final int KEY_LENGTH = 256;
@@ -24,6 +25,7 @@ public class PasswordHasher {
 
   public boolean matches(String rawPassword, String storedPassword) {
     if (!isHashed(storedPassword)) {
+      // 兼容历史明文密码，登录成功后 AuthService 会自动升级为哈希。
       return rawPassword.equals(storedPassword);
     }
     String[] parts = storedPassword.substring(PREFIX.length()).split(":");
@@ -31,6 +33,7 @@ public class PasswordHasher {
     byte[] salt = Base64.getDecoder().decode(parts[1]);
     byte[] expected = Base64.getDecoder().decode(parts[2]);
     byte[] actual = pbkdf2(rawPassword, salt, iterations);
+    // 哈希比较使用常量时间比较，避免根据比较耗时泄露密码信息。
     if (expected.length != actual.length) {
       return false;
     }

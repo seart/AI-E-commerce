@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 后台登录页：只允许 ADMIN / OPERATOR 登录后进入后台路由。
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'

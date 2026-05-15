@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { profileService } from '@/services/profile'
 import type { UserProfile } from '@/types/domain'
 
+// 个人中心 store：缓存当前用户资料，退出登录时由外部 reset。
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref<UserProfile | null>(null)
   const loading = ref(false)

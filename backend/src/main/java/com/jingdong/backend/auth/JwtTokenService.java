@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JwtTokenService {
+  // 轻量 JWT 实现：只使用 HS256 签名，不引入 session 或重型 OAuth2。
   private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
   private static final Base64.Decoder URL_DECODER = Base64.getUrlDecoder();
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
@@ -84,6 +85,7 @@ public class JwtTokenService {
 
   public TokenClaims parseClaims(String token) {
     try {
+      // JWT 必须是 header.payload.signature 三段式。
       String[] parts = token.split("\\.");
       if (parts.length != 3) {
         throw new BusinessException(ErrorCode.UNAUTHORIZED);
@@ -91,6 +93,7 @@ public class JwtTokenService {
 
       String signedContent = parts[0] + "." + parts[1];
       String expectedSignature = sign(signedContent);
+      // 签名比较使用常量时间比较，降低时序侧信道风险。
       if (!constantTimeEquals(expectedSignature, parts[2])) {
         throw new BusinessException(ErrorCode.UNAUTHORIZED);
       }
@@ -134,6 +137,7 @@ public class JwtTokenService {
 
   private String createToken(String userId, String role, long minutes, String tokenType) {
     try {
+      // access 和 refresh 共用生成逻辑，通过 typ 字段区分用途。
       Map<String, Object> header = new LinkedHashMap<>();
       header.put("alg", "HS256");
       header.put("typ", "JWT");

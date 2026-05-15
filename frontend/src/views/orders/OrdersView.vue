@@ -1,4 +1,5 @@
 <template>
+  <!-- 用户订单页：展示订单状态，并提供取消、退款、继续支付等入口。 -->
   <div class="orders-view">
     <div class="orders-header">
       <h2>我的订单</h2>

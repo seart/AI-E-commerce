@@ -1,4 +1,5 @@
 <template>
+  <!-- 收货地址编辑页：新增和编辑共用同一套表单。 -->
   <div class="address-edit">
     <div class="header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

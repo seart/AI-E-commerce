@@ -7,6 +7,7 @@ import { loadJson, saveJson } from '@/utils/storage'
 
 const popularKeywords = ['矿泉水', '榴莲', '气泡水', '咖啡', '三文鱼', '苹果']
 
+// 商品目录 store：缓存首页、搜索结果、商家详情和商品详情。
 export const useCatalogStore = defineStore('catalog', () => {
   const home = ref<HomePageData | null>(null)
   const merchants = ref<Merchant[]>([])
@@ -56,6 +57,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   async function searchAll(keyword: string) {
     searchLoading.value = true
     try {
+      // 搜索页需要同时展示商家和商品，因此并发请求两个接口。
       const [merchantRows, productRows] = await Promise.all([
         catalogService.searchMerchants(keyword),
         catalogService.searchProducts(keyword),
@@ -102,6 +104,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       const detail = await catalogService.getProductDetail(productId)
       productDetails.value = {
         ...productDetails.value,
+        // 同一份详情同时按入参、SPU ID、SKU ID 建索引，页面跳转时更容易命中缓存。
         [productId]: detail,
         [detail.product.spuId]: detail,
         ...(detail.product.skuId ? { [detail.product.skuId]: detail } : {}),
@@ -118,6 +121,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       return
     }
 
+    // 最新关键词放前面，去重后最多保留 8 条。
     searchHistory.value = [normalized, ...searchHistory.value.filter((item) => item !== normalized)]
       .slice(0, 8)
     saveJson(STORAGE_KEYS.searchHistory, searchHistory.value)

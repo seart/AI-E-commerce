@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RateLimiterService {
+  // 简易 Redis 限流服务，用于登录、下单等容易被刷的接口。
   private final StringRedisTemplate redisTemplate;
 
   public RateLimiterService(StringRedisTemplate redisTemplate) {

@@ -14,7 +14,7 @@ INSERT INTO users (
   growth_value = VALUES(growth_value);
 
 INSERT INTO banners (id, title, subtitle, background, sort_order) VALUES
-  ('b1', '京东秒送企业版', '全城优选商家，1小时安心达', 'linear-gradient(135deg, #ff7a18 0%, #e1251b 100%)', 10),
+  ('b1', '秒送企业版', '全城优选商家，1小时安心达', 'linear-gradient(135deg, #ff7a18 0%, #e1251b 100%)', 10),
   ('b2', '生鲜直降专区', '满99减20，会员叠加券更划算', 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)', 20)
 ON DUPLICATE KEY UPDATE
   title = VALUES(title),
@@ -39,7 +39,7 @@ ON DUPLICATE KEY UPDATE
   sort_order = VALUES(sort_order);
 
 INSERT INTO brands (id, name, logo, description, status, sort_order) VALUES
-  ('brand_jd', '京东自营', '', '平台自营品牌', 'ACTIVE', 10)
+  ('brand_jd', '自营', '', '平台自营品牌', 'ACTIVE', 10)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   logo = VALUES(logo),

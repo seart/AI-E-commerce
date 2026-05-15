@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ProfileService {
+  // 个人中心业务层，返回当前用户基础信息和统计数据。
   private final DatabaseStore store;
 
   public ProfileService(DatabaseStore store) {

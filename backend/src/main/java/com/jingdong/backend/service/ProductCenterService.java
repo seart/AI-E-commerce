@@ -57,6 +57,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProductCenterService {
+  // 商品中心负责后台类目、品牌、规格、SPU/SKU 管理，以及用户端商品搜索和详情查询。
+  // SPU 表示一组商品，SKU 表示可购买的具体规格，库存以 SKU 为准。
   private static final String ACTIVE = "ACTIVE";
   private static final String DISABLED = "DISABLED";
   private static final String CHANNEL = "CHANNEL";
@@ -181,6 +183,7 @@ public class ProductCenterService {
   }
 
   public List<SpecGroupAdminResponse> specGroups() {
+    // 规格组和规格值分表存储，返回给前端时组装成“规格组 + options”的树形结构。
     Map<String, List<SpecOptionAdminResponse>> optionsByGroupId = specOptionMapper.selectList(
             Wrappers.<SpecOptionEntity>lambdaQuery().orderByAsc(SpecOptionEntity::getSortOrder))
         .stream()
@@ -276,6 +279,7 @@ public class ProductCenterService {
 
   @Transactional
   public ProductSpuAdminResponse saveProductSpu(ProductSpuUpsertRequest request) {
+    // 保存 SPU 时处理商品主信息；SKU 列表由 saveSkuInternal 逐个落库。
     validateSpuRequest(request);
     String id = value(request.id(), uid("spu"));
     String requestedStatus = normalizeSpuStatus(request.status());
@@ -296,6 +300,7 @@ public class ProductCenterService {
 
     if (request.skus() != null) {
       for (ProductSkuUpsertRequest sku : request.skus()) {
+        // 每个 SKU 保存时会同步库存账户，保证商品中心和库存中心保持一致。
         saveSkuInternal(spu, sku);
       }
     }
@@ -325,6 +330,7 @@ public class ProductCenterService {
 
   @Transactional
   public ProductSkuAdminResponse saveProductSku(String spuId, ProductSkuUpsertRequest request) {
+    // 单独保存 SKU 时先确认 SPU 存在，避免孤儿 SKU。
     ProductSpuEntity spu = Optional.ofNullable(productSpuMapper.selectById(spuId))
         .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
     ProductEntity sku = saveSkuInternal(spu, request);
@@ -347,6 +353,7 @@ public class ProductCenterService {
 
   @Transactional
   public ProductAdminResponse saveLegacyProduct(ProductUpsertRequest request) {
+    // 兼容旧后台“单商品”接口：内部仍转换成一个默认 SPU + 一个默认 SKU。
     ProductEntity existing = request.id() == null ? null : productMapper.selectById(request.id());
     String spuId = existing == null ? null : existing.getSpuId();
     String brandId = existing != null && !isBlank(existing.getBrandId()) ? existing.getBrandId() : "brand_jd";
@@ -394,6 +401,7 @@ public class ProductCenterService {
       String categoryId,
       String brandId
   ) {
+    // 用户端搜索只返回启用商家、上架 SPU、上架 SKU，后台草稿/下架商品不会暴露。
     List<ProductEntity> skus = visibleSkus().stream()
         .filter(sku -> isBlank(merchantId) || merchantId.equals(sku.getMerchantId()))
         .filter(sku -> isBlank(categoryId) || categoryId.equals(sku.getCategoryId()))
@@ -410,6 +418,7 @@ public class ProductCenterService {
   }
 
   public ProductDetailResponse productDetail(String productId) {
+    // 详情接口兼容传 SPU ID 或 SKU ID，方便旧页面和新商品中心同时使用。
     ProductSpuEntity spu = productSpuMapper.selectById(productId);
     if (spu == null) {
       ProductEntity sku = productMapper.selectById(productId);
@@ -446,6 +455,7 @@ public class ProductCenterService {
   }
 
   private ProductEntity saveSkuInternal(ProductSpuEntity spu, ProductSkuUpsertRequest request) {
+    // SKU 保存时同时校验价格、库存、规格组合唯一性。
     ensureValidMoney(request.price(), request.originalPrice());
     ensureValidStock(request.stock());
     ensureNoDuplicateSkuSpecs(spu.getId(), request.skuId(), request.specs());
@@ -471,6 +481,7 @@ public class ProductCenterService {
     sku.setStatus(normalizeSkuStatus(request.status()));
     sku.setSortOrder(value(sku.getSortOrder(), 100));
     upsertSku(sku);
+    // SKU 的可售库存变化通过库存中心同步，不能只更新商品表字段。
     inventoryService.syncAvailableFromProductUpdate(
         skuId,
         request.stock(),
@@ -542,6 +553,7 @@ public class ProductCenterService {
   }
 
   private void ensureNoDuplicateSkuSpecs(String spuId, String skuId, List<SkuSpecRequest> specs) {
+    // 同一个 SPU 下不能出现两个规格组合完全相同的 SKU。
     String specKey = specKey(specs);
     List<ProductEntity> existingSkus = productMapper.selectList(Wrappers.<ProductEntity>lambdaQuery()
         .eq(ProductEntity::getSpuId, spuId));
@@ -556,6 +568,7 @@ public class ProductCenterService {
   }
 
   private void ensureSpuCanBeOnShelf(String spuId) {
+    // SPU 上架前必须至少有一个上架 SKU，否则用户端无法购买。
     Long count = productMapper.selectCount(Wrappers.<ProductEntity>lambdaQuery()
         .eq(ProductEntity::getSpuId, spuId)
         .eq(ProductEntity::getStatus, ON_SHELF));
@@ -602,6 +615,7 @@ public class ProductCenterService {
     }
     MerchantEntity merchant = merchantMapper.selectById(spu.getMerchantId());
     BrandEntity brand = isBlank(spu.getBrandId()) ? null : brandMapper.selectById(spu.getBrandId());
+    // 用户端商品卡片取最低价 SKU 作为展示价。
     ProductEntity first = skus.stream().min(Comparator.comparing(ProductEntity::getPrice)).orElseThrow();
     BigDecimal minPrice = skus.stream().map(ProductEntity::getPrice).min(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
     BigDecimal maxPrice = skus.stream().map(ProductEntity::getPrice).max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);

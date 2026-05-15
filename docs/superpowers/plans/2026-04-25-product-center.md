@@ -266,7 +266,7 @@ private void createProductCenterTables() {
 private void seedProductCenterDictionaries() {
   jdbcTemplate.update("""
       insert ignore into brands (id, name, logo, description, status, sort_order)
-      values ('brand_jd', '京东自营', '', '平台自营品牌', 'ACTIVE', 10)
+      values ('brand_jd', '自营', '', '平台自营品牌', 'ACTIVE', 10)
       """);
   jdbcTemplate.update("""
       insert ignore into spec_groups (id, name, status, sort_order)

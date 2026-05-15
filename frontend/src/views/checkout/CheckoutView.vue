@@ -1,4 +1,5 @@
 <template>
+  <!-- 结算页：确认地址和商品后创建待支付订单。 -->
   <div class="checkout-view">
     <div class="header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { cartService } from '@/services/cart'
 import type { CartItem, CartMerchantGroup, Product, ProductCard, ProductSku } from '@/types/domain'
 
+// 购物车 store：页面只读这里的状态，所有增删改都通过 cartService 同步后端。
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([])
   const loading = ref(false)
@@ -19,6 +20,7 @@ export const useCartStore = defineStore('cart', () => {
   const cartGroupedByMerchant = computed<CartMerchantGroup[]>(() => {
     const grouped = new Map<string, CartMerchantGroup>()
 
+    // 购物车页面按商家分组展示，所以这里把扁平接口数据整理成商家分组。
     items.value.forEach((item) => {
       if (!grouped.has(item.merchantId)) {
         grouped.set(item.merchantId, {
@@ -44,6 +46,7 @@ export const useCartStore = defineStore('cart', () => {
   })
 
   async function loadCart(force = false) {
+    // 非强制刷新时复用已有购物车数据，避免页面反复切换产生多余请求。
     if (loading.value || (items.value.length > 0 && !force)) {
       return items.value
     }
@@ -58,6 +61,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   async function syncCart(task: () => Promise<CartItem[]>) {
+    // 所有购物车写操作都返回后端最新购物车列表，前端直接整体替换，减少局部状态不一致。
     mutating.value = true
     try {
       items.value = await task()
@@ -72,6 +76,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   async function addToCart(product: Product | ProductCard | ProductSku) {
+    // 页面可能传 SPU、SKU 或商品卡片，这里统一解析成后端购物车需要的 skuId。
     if ('skuId' in product && product.skuId) {
       return addSkuToCart(product.skuId)
     }

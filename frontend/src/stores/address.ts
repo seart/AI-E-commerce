@@ -3,15 +3,18 @@ import { defineStore } from 'pinia'
 import { addressService } from '@/services/address'
 import type { Address, AddressInput } from '@/types/domain'
 
+// 地址 store：负责地址列表缓存和默认地址计算。
 export const useAddressStore = defineStore('address', () => {
   const addresses = ref<Address[]>([])
   const loading = ref(false)
 
   const defaultAddress = computed(() => {
+    // 优先使用后端标记的默认地址，没有默认时取第一条。
     return addresses.value.find((item) => item.isDefault) ?? addresses.value[0] ?? null
   })
 
   async function loadAddresses(force = false) {
+    // 地址不频繁变化，默认复用缓存；新增/编辑后再强制刷新。
     if (loading.value || (addresses.value.length > 0 && !force)) {
       return addresses.value
     }

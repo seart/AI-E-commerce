@@ -38,6 +38,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AdminService {
+  // 后台管理业务层，聚合订单、商品、商家、用户、库存、审计等运营能力。
   private final DatabaseStore store;
   private final AuditLogService auditLogService;
   private final ProductCenterService productCenterService;

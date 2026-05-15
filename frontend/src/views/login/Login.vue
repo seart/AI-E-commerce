@@ -1,8 +1,9 @@
 <template>
+  <!-- 登录页：成功后写入 auth store，并由路由守卫放行受保护页面。 -->
   <div class="login-page">
     <div class="login-card">
       <div class="login-header">
-        <div class="brand">京东企业版商城</div>
+        <div class="brand">企业版商城</div>
         <div class="title">欢迎登录</div>
         <div class="subtitle">支持真实 API 对接，默认开发模式可切换 mock 联调</div>
       </div>

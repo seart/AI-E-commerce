@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+  // 用户认证接口：登录、注册、退出和刷新 token。
   private final AuthService authService;
 
   public AuthController(AuthService authService) {

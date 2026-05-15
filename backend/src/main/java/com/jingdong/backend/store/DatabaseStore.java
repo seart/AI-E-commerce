@@ -67,6 +67,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DatabaseStore {
+  // DatabaseStore 是用户端基础业务的持久化门面，负责把 Mapper 结果转换成前端 DTO。
+  // 商品中心的新 SPU/SKU 逻辑在 ProductCenterService 中，旧接口在这里保留兼容。
   private static final DateTimeFormatter ORDER_FORMATTER =
       DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT);
   private static final TypeReference<List<String>> TAGS_TYPE = new TypeReference<>() {};
@@ -137,6 +139,7 @@ public class DatabaseStore {
   }
 
   public UserRecord createUser(String mobile, String password) {
+    // 注册用户默认 CUSTOMER 角色，后台账号由初始化数据或后台权限流程维护。
     if (findUserByMobile(mobile).isPresent()) {
       throw new BusinessException(ErrorCode.MOBILE_EXISTS);
     }
@@ -174,6 +177,7 @@ public class DatabaseStore {
   }
 
   public HomeResponse home() {
+    // 首页聚合 banner、频道、精选商家，前端一次请求即可渲染首页。
     List<BannerResponse> banners = bannerMapper.selectList(Wrappers.<BannerEntity>lambdaQuery()
             .orderByAsc(BannerEntity::getSortOrder))
         .stream()

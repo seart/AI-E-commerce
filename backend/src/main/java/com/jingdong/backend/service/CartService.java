@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class CartService {
+  // 购物车业务层，保证所有购物车数据都按当前用户隔离。
   private final DatabaseStore store;
 
   public CartService(DatabaseStore store) {

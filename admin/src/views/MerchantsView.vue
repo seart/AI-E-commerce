@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 商家管理页：维护商家基础资料和启停状态。
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getMerchants, saveMerchant } from '@/api/admin'
@@ -127,7 +128,7 @@ onMounted(load)
   <el-dialog v-model="dialogVisible" :title="form.id ? '编辑商家' : '新增商家'" width="720px">
     <el-form label-width="104px">
       <el-form-item label="商家名称">
-        <el-input v-model="form.name" placeholder="例如：京东到家旗舰店" />
+        <el-input v-model="form.name" placeholder="例如：到家旗舰店" />
       </el-form-item>
       <el-row :gutter="16">
         <el-col :span="8">

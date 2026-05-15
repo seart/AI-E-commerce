@@ -16,6 +16,7 @@ const router = useRouter()
 const session = useSessionStore()
 
 async function signOut() {
+  // 先尝试通知后端登出；即使后端失败，也清理本地会话并回登录页。
   await logout().catch(() => undefined)
   session.clear()
   router.replace('/login')

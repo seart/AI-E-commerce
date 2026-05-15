@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/products")
 public class ProductController {
+  // 用户端商品搜索和商品详情接口。
   private final ProductCenterService productCenterService;
 
   public ProductController(ProductCenterService productCenterService) {

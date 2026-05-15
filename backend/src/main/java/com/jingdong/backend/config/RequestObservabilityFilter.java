@@ -22,6 +22,7 @@ public class RequestObservabilityFilter extends OncePerRequestFilter {
       HttpServletResponse response,
       FilterChain filterChain
   ) throws ServletException, IOException {
+    // 每个请求都带一个 requestId：前端可传入，后端没有收到时自动生成。
     String requestId = request.getHeader("X-Request-Id");
     if (requestId == null || requestId.isBlank()) {
       requestId = UUID.randomUUID().toString();
@@ -32,6 +33,7 @@ public class RequestObservabilityFilter extends OncePerRequestFilter {
     try {
       filterChain.doFilter(request, response);
     } finally {
+      // 请求结束后统一输出结构化访问日志，排查问题时可按 requestId 串起日志链路。
       long duration = System.currentTimeMillis() - startedAt;
       log.info(
           "request method={} path={} status={} durationMs={} requestId={}",

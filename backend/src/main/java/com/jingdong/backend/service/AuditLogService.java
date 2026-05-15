@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AuditLogService {
+  // 审计日志服务，后台高危操作和关键用户行为都从这里落库。
   private final AuditLogMapper auditLogMapper;
 
   public AuditLogService(AuditLogMapper auditLogMapper) {

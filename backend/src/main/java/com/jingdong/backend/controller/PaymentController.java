@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/payments")
 public class PaymentController {
+  // 支付接口：用户发起预支付，网关回调确认支付，前端轮询支付状态。
   private final PaymentService paymentService;
   private final ObjectMapper objectMapper;
   private final PaymentProperties paymentProperties;

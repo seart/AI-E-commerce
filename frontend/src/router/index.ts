@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { hasStoredSession } from '@/services/session'
 
+// 移动端用户应用路由表：这里管理的是浏览器页面路径，不是后端接口路径。
+// 例如页面 `/orders` 会在 service 层请求后端 `/api/orders`。
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -87,6 +89,8 @@ const router = createRouter({
   ],
 })
 
+// 轻量登录守卫：登录/注册页允许匿名访问，其余页面需要本地存在登录态。
+// 真正的权限校验仍由后端 Spring Security + JWT 完成。
 router.beforeEach((to) => {
   const hasSession = hasStoredSession()
   const { name } = to

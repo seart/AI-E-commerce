@@ -10,6 +10,8 @@ import type {
   SpecGroup,
 } from '@/types/domain'
 
+// 商品中心编辑抽屉内部使用的 SKU 草稿结构。
+// 它比后端 DTO 多 clientId 和 selectedSpecKeys，用来服务前端动态表单。
 export interface ProductSkuDraft {
   clientId: string
   skuId?: string
@@ -22,6 +24,7 @@ export interface ProductSkuDraft {
   status: 'ON_SHELF' | 'OFF_SHELF'
 }
 
+// 商品 SPU 草稿结构：页面表单先编辑草稿，点击保存时再转换成后端请求体。
 export interface ProductSpuDraft {
   id?: string
   merchantId: string
@@ -76,15 +79,18 @@ export function categoryTypeText(type: Category['type']) {
 }
 
 export function specKey(groupId: string, optionId: string) {
+  // 用稳定字符串表示“规格组 + 规格值”，方便 Element Plus 多选控件绑定。
   return `${groupId}::${optionId}`
 }
 
 export function splitSpecKey(key: string) {
+  // specKey 的反向解析，保存 SKU 时需要还原成后端需要的 groupId/optionId。
   const [groupId, optionId] = key.split('::')
   return { groupId: groupId ?? '', optionId: optionId ?? '' }
 }
 
 export function makeSkuDraft(sku?: ProductSku): ProductSkuDraft {
+  // 编辑已有 SKU 时从后端数据回填；新增 SKU 时生成本地 clientId 供 v-for 使用。
   return {
     clientId: sku?.skuId || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     skuId: sku?.skuId,
@@ -102,6 +108,7 @@ export function makeProductDraft(
   product: ProductSpu | null,
   defaults: { merchantId?: string; categoryId?: string; brandId?: string },
 ): ProductSpuDraft {
+  // 把后端 SPU 转成表单草稿；新增商品时使用商家/类目/品牌默认值。
   return {
     id: product?.id,
     merchantId: product?.merchantId ?? defaults.merchantId ?? '',
@@ -119,6 +126,7 @@ export function makeProductDraft(
 }
 
 export function selectedSpecs(keys: string[], groups: SpecGroup[]): SkuSpec[] {
+  // 把前端选择的 specKey 列表转换为后端保存 SKU 规格所需的完整规格对象。
   const groupsById = new Map(groups.map((group) => [group.id, group]))
   return keys
     .map((key) => {
@@ -137,6 +145,7 @@ export function selectedSpecs(keys: string[], groups: SpecGroup[]): SkuSpec[] {
 }
 
 export function skuDraftToRequest(sku: ProductSkuDraft, groups: SpecGroup[]): ProductSkuUpsertRequest {
+  // 清洗 SKU 表单字段，避免把空字符串、临时字段直接传给后端。
   return {
     skuId: sku.skuId,
     skuCode: sku.skuCode.trim() || undefined,
@@ -150,6 +159,7 @@ export function skuDraftToRequest(sku: ProductSkuDraft, groups: SpecGroup[]): Pr
 }
 
 export function productDraftToRequest(form: ProductSpuDraft, groups: SpecGroup[]): ProductSpuUpsertRequest {
+  // 保存商品前的最后转换：处理图片换行文本、数字字段和 SKU 子表单。
   return {
     id: form.id,
     merchantId: form.merchantId,

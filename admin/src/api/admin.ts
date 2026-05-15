@@ -23,6 +23,8 @@ import type {
   SpecOptionUpsertRequest,
 } from '@/types/domain'
 
+// 后台 API 集中在这个文件，路径全部以 `/admin/**` 表示运营后台接口。
+// 最终地址 = VITE_API_BASE_URL + 这里的路径，例如 `/api/admin/products`。
 export function login(mobile: string, password: string) {
   return http.post<SessionResponse, SessionResponse>('/auth/login', { mobile, password })
 }
@@ -40,6 +42,7 @@ export function getMerchants() {
 }
 
 export function saveMerchant(merchant: Partial<Merchant>) {
+  // 有 id 表示编辑已有商家；没有 id 表示新建商家。
   return merchant.id
     ? http.put<Merchant, Merchant>(`/admin/merchants/${merchant.id}`, merchant)
     : http.post<Merchant, Merchant>('/admin/merchants', merchant)
@@ -50,6 +53,7 @@ export function getProducts() {
 }
 
 export function saveProduct(product: Partial<Product>) {
+  // 兼容旧的单商品接口；新的 SPU/SKU 商品中心接口在下方 product-spus 区域。
   return product.id
     ? http.put<Product, Product>(`/admin/products/${product.id}`, product)
     : http.post<Product, Product>('/admin/products', product)
@@ -112,6 +116,7 @@ export function getProductSpu(spuId: string) {
 }
 
 export function saveProductSpu(spu: ProductSpuUpsertRequest) {
+  // 商品 SPU 保存：同一个函数同时处理新增和编辑，页面无需关心 HTTP method。
   return spu.id
     ? http.put<ProductSpu, ProductSpu>(`/admin/product-spus/${spu.id}`, spu)
     : http.post<ProductSpu, ProductSpu>('/admin/product-spus', spu)
@@ -122,6 +127,7 @@ export function updateProductSpuStatus(spuId: string, status: ProductSpu['status
 }
 
 export function saveProductSku(spuId: string, sku: ProductSkuUpsertRequest) {
+  // SKU 必须挂在某个 SPU 下保存，后端用 spuId 保证规格归属关系。
   return sku.skuId
     ? http.put<ProductSku, ProductSku>(`/admin/product-spus/${spuId}/skus/${sku.skuId}`, sku)
     : http.post<ProductSku, ProductSku>(`/admin/product-spus/${spuId}/skus`, sku)

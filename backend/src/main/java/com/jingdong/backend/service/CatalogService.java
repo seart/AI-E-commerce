@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class CatalogService {
+  // 用户端目录业务层，提供首页、商家和商品浏览数据。
   private final DatabaseStore store;
 
   public CatalogService(DatabaseStore store) {

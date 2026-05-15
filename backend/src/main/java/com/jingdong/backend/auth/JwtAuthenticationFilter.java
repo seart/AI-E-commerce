@@ -18,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+  // 与 SecurityConfig 的匿名路径保持一致，避免公开接口被 JWT 过滤器提前拦截。
   private static final List<String> PUBLIC_PATHS = List.of(
       "/auth/login",
       "/auth/register",
@@ -51,6 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
+    // 预检请求不做鉴权；实际业务请求仍会按权限规则校验。
     if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
       return true;
     }
@@ -64,6 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       HttpServletResponse response,
       FilterChain filterChain
   ) throws ServletException, IOException {
+    // 没有 Bearer Token 时继续进入后续 Spring Security 规则，由规则决定是否 401。
     String authorization = request.getHeader("Authorization");
     if (authorization == null || !authorization.startsWith("Bearer ")) {
       filterChain.doFilter(request, response);
@@ -77,6 +80,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     try {
+      // logout 后的 token 或 jti 会进入 Redis 黑名单，避免旧 token 被继续使用。
       if (tokenBlacklistService.isBlacklisted(token)) {
         securityErrorHandler.writeUnauthorized(response);
         return;
@@ -94,6 +98,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return;
       }
 
+      // 把当前用户写入 SecurityContext，后续 controller/service 可通过认证信息拿到用户身份。
       CurrentUserPrincipal principal = new CurrentUserPrincipal(
           user.get().id(),
           user.get().mobile(),

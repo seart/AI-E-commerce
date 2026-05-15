@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 商品编辑抽屉：把 SPU 主信息和 SKU 规格库存组合成一次保存请求。
 import { computed, reactive, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Select } from '@element-plus/icons-vue'

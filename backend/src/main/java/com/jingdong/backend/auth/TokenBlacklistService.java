@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TokenBlacklistService {
+  // Token 黑名单存 Redis，TTL 与 token 剩余有效期一致，避免无期限堆积。
   private static final String KEY_PREFIX = "auth:blacklist:";
   private static final String JTI_KEY_PREFIX = "auth:blacklist:jti:";
 
@@ -53,6 +54,7 @@ public class TokenBlacklistService {
 
   private String fingerprint(String token) {
     try {
+      // Redis key 只保存 token 指纹，不直接保存原始 JWT。
       byte[] digest = MessageDigest.getInstance("SHA-256")
           .digest(token.getBytes(StandardCharsets.UTF_8));
       return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);

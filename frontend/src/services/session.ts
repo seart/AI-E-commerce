@@ -2,6 +2,7 @@ import { STORAGE_KEYS } from '@/constants/storage'
 import type { UserSession } from '@/types/domain'
 import { loadJson, removeStorage, saveJson } from '@/utils/storage'
 
+// 用户端会话存取集中在这里，避免各页面直接操作 localStorage。
 export function getStoredSession() {
   return loadJson<UserSession | null>(STORAGE_KEYS.session, null)
 }
@@ -15,6 +16,7 @@ export function clearStoredSession() {
 }
 
 export function getAccessToken() {
+  // http 拦截器通过这个方法拿 Bearer Token。
   return getStoredSession()?.accessToken ?? ''
 }
 

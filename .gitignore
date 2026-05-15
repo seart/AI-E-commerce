@@ -15,7 +15,8 @@ backend/target/
 # Local environment
 .env
 .env.*
-!.env.example
+!.env.test
+!.env.production
 *.local
 
 # IDE and OS files

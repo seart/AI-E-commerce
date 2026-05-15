@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/merchants")
 public class MerchantController {
+  // 用户端商家搜索和商家详情接口。
   private final CatalogService catalogService;
 
   public MerchantController(CatalogService catalogService) {

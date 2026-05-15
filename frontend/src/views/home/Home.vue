@@ -1,4 +1,5 @@
 <template>
+  <!-- 移动端首页：展示地址、搜索入口、频道、商家和推荐商品。 -->
   <div class="home-page">
     <div class="header">
       <el-icon class="location-icon"><Location /></el-icon>

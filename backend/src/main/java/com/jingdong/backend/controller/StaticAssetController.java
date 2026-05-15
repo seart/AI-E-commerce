@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/static/category")
 public class StaticAssetController {
+  // 本地静态占位资源接口，给分类图标等演示资源返回简单 SVG。
 
   @GetMapping(value = "/{categoryId}.png", produces = "image/svg+xml")
   public ResponseEntity<byte[]> categoryIcon(@PathVariable String categoryId) {

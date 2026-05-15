@@ -1,4 +1,5 @@
 <template>
+  <!-- 移动端底部导航：只负责页面切换，不直接请求业务数据。 -->
   <div class="tab-bar">
     <div 
       class="tab-item" 
@@ -46,6 +47,7 @@ const router = useRouter()
 const currentPath = computed(() => route.path)
 
 const navigateTo = (path: string) => {
+  // 当前已经在目标页面时不重复 push，避免产生多余历史记录。
   if (currentPath.value !== path) {
     router.push(path)
   }

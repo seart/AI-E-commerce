@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class AddressService {
+  // 收货地址业务层，当前主要把 controller 请求转给持久化门面。
   private final DatabaseStore store;
 
   public AddressService(DatabaseStore store) {

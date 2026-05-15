@@ -1,4 +1,5 @@
 <template>
+  <!-- 商品详情页：展示 SPU 信息、SKU 选择和加入购物车入口。 -->
   <div class="product-detail">
     <div class="header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

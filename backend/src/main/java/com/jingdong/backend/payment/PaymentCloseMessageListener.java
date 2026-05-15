@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
     consumerGroup = "${app.payment.rocketmq.close-consumer-group:jingdong-payment-close-consumer}"
 )
 public class PaymentCloseMessageListener implements RocketMQListener<PaymentCloseMessage> {
+  // 消费延迟关单消息，真正的幂等关单逻辑在 PaymentService。
   private final PaymentService paymentService;
 
   public PaymentCloseMessageListener(PaymentService paymentService) {

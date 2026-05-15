@@ -26,7 +26,7 @@ export const mockCategories: Category[] = [
 export const mockBanners: Banner[] = [
   {
     id: 'b1',
-    title: '京东秒送企业版',
+    title: '秒送企业版',
     subtitle: '全城优选商家，1小时安心达',
     background: 'linear-gradient(135deg, #ff7a18 0%, #e1251b 100%)',
   },

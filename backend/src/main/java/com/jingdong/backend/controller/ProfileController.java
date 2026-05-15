@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class ProfileController {
+  // 用户个人中心接口。
   private final ProfileService profileService;
 
   public ProfileController(ProfileService profileService) {

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class HomeController {
+  // 用户端首页聚合接口。
   private final CatalogService catalogService;
 
   public HomeController(CatalogService catalogService) {

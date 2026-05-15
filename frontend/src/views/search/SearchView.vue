@@ -1,4 +1,5 @@
 <template>
+  <!-- 搜索输入页：负责收集关键词并跳转到结果页。 -->
   <div class="search-view">
     <div class="search-header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

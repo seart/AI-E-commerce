@@ -1,4 +1,5 @@
 <template>
+  <!-- 收货地址列表页：结算页可跳转到这里选择或维护地址。 -->
   <div class="address-list">
     <div class="header">
       <el-icon class="back-icon" @click="goBack"><ArrowLeft /></el-icon>

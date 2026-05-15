@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/cart")
 public class CartController {
+  // 用户购物车接口，所有操作都基于当前 JWT 用户身份。
   private final CartService cartService;
 
   public CartController(CartService cartService) {

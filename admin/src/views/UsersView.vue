@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 用户管理页：后台查看用户并启用/禁用账号。
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getUsers, updateUserStatus } from '@/api/admin'

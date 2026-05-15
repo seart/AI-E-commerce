@@ -42,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
+  // 后台 controller 只暴露运营端接口；访问权限由 SecurityConfig 的 /admin/** 规则统一限制。
   private final AdminService adminService;
 
   public AdminController(AdminService adminService) {
@@ -122,6 +123,7 @@ public class AdminController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) Boolean lowStockOnly
   ) {
+    // 库存账户接口用于后台看每个 SKU 的可售/锁定/已售库存。
     return ApiResponse.success(adminService.inventoryAccounts(keyword, lowStockOnly));
   }
 
@@ -140,6 +142,7 @@ public class AdminController {
       @PathVariable String skuId,
       @RequestBody InventoryAdjustRequest request
   ) {
+    // 后台手工调库存必须写库存流水和审计日志，不能直接改 products.stock。
     return ApiResponse.success(adminService.adjustInventory(skuId, request));
   }
 
@@ -270,6 +273,7 @@ public class AdminController {
 
   @PostMapping("/product-spus")
   public ApiResponse<ProductSpuAdminResponse> createProductSpu(@RequestBody ProductSpuUpsertRequest request) {
+    // 新商品中心用 SPU + SKU 模型保存商品，替代旧的单商品接口。
     return ApiResponse.success(adminService.saveProductSpu(request));
   }
 

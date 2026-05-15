@@ -62,6 +62,7 @@ public class PaymentService {
 
   @Transactional
   public PaymentPrepayResponse prepay(String userId, PaymentPrepayRequest request) {
+    // 预支付入口：校验订单归属、状态和支付有效期，然后生成扫码支付单。
     OrderEntity order = ownedOrder(userId, request.orderId());
     LocalDateTime now = LocalDateTime.now();
     if ("PAYMENT_CLOSED".equals(order.getStatus())) {
@@ -78,6 +79,7 @@ public class PaymentService {
     String channel = normalizeChannel(request.channel());
     PaymentEntity existing = reusablePayment(order.getId(), channel, now);
     if (existing != null) {
+      // 同一订单同一渠道已有未过期二维码时直接复用，避免频繁创建网关订单。
       return toPrepayResponse(existing);
     }
 
@@ -90,7 +92,7 @@ public class PaymentService {
         order.getOrderNo(),
         outTradeNo,
         order.getTotalAmount(),
-        "京东到家订单 " + order.getOrderNo(),
+        "到家订单 " + order.getOrderNo(),
         expireAt
     ));
 
@@ -115,6 +117,7 @@ public class PaymentService {
         .eq(OrderEntity::getStatus, "PENDING_PAYMENT")
         .set(OrderEntity::getPaymentStatus, "PAYING")
         .set(OrderEntity::getPaymentChannel, channel));
+    // 到这里本地支付单已创建，订单仍然是待支付状态，等待网关异步通知确认。
     auditLogService.record("PAYMENT_PREPAY", "ORDER", order.getId(), channel + " 创建扫码支付");
     return toPrepayResponse(payment);
   }
@@ -133,11 +136,13 @@ public class PaymentService {
 
   @Transactional
   public void confirmGatewayPaid(String outTradeNo, String transactionId, String notifyPayload) {
+    // 支付网关回调根据 outTradeNo 找本地支付单；该方法需要幂等，避免重复通知重复扣库存。
     PaymentEntity payment = paymentByOutTradeNo(outTradeNo);
     if (payment == null) {
       throw new BusinessException(ErrorCode.PAYMENT_NOT_FOUND);
     }
     if ("PAID".equals(payment.getStatus())) {
+      // 已处理过的支付通知直接返回，保证回调幂等。
       return;
     }
 
@@ -146,6 +151,7 @@ public class PaymentService {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
     }
     if ("PAYMENT_CLOSED".equals(order.getStatus())) {
+      // 订单已超时关闭时不再改订单状态，只记录一次迟到通知方便排查。
       payment.setNotifyPayload(notifyPayload);
       paymentMapper.updateById(payment);
       auditLogService.record("PAYMENT_LATE_NOTIFY", "ORDER", order.getId(), payment.getChannel());
@@ -164,6 +170,7 @@ public class PaymentService {
         .set(OrderEntity::getStatusHistoryJson,
             appendStatusHistory(order.getStatusHistoryJson(), "PAID", "支付网关异步通知成功")));
     if (updated > 0 || "PAID".equals(order.getStatus())) {
+      // 订单支付成功后，把锁定库存转为已售库存。
       inventoryService.confirmOrderPaid(order.getId(), "支付网关异步通知成功");
       payment.setStatus("PAID");
       payment.setTransactionId(transactionId);
@@ -177,6 +184,7 @@ public class PaymentService {
 
   @Transactional
   public void closeExpiredOrder(String orderId) {
+    // 超时关单只处理待支付订单；已支付、已取消或已关闭订单不会再次回滚库存。
     OrderEntity order = orderMapper.selectById(orderId);
     if (order == null || !"PENDING_PAYMENT".equals(order.getStatus())) {
       return;
@@ -197,6 +205,7 @@ public class PaymentService {
         .set(OrderEntity::getStatusHistoryJson,
             appendStatusHistory(order.getStatusHistoryJson(), "PAYMENT_CLOSED", "支付超时自动关闭")));
     if (updated > 0) {
+      // 关单成功后释放下单时锁定的库存，库存流水保证同一订单只释放一次。
       inventoryService.releaseOrderStock(orderId, "支付超时自动关闭");
       paymentMapper.update(null, Wrappers.<PaymentEntity>lambdaUpdate()
           .eq(PaymentEntity::getOrderId, orderId)
@@ -208,6 +217,7 @@ public class PaymentService {
   }
 
   private OrderEntity ownedOrder(String userId, String orderId) {
+    // 用户只能操作自己的支付单，避免通过 payment/order id 越权查询或支付他人订单。
     OrderEntity order = orderMapper.selectById(orderId);
     if (order == null) {
       throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
@@ -219,6 +229,7 @@ public class PaymentService {
   }
 
   private PaymentEntity reusablePayment(String orderId, String channel, LocalDateTime now) {
+    // 查找当前订单同渠道仍在支付中的二维码，提升扫码页刷新体验。
     PaymentEntity payment = paymentMapper.selectOne(Wrappers.<PaymentEntity>lambdaQuery()
         .eq(PaymentEntity::getOrderId, orderId)
         .eq(PaymentEntity::getChannel, channel)
@@ -294,6 +305,7 @@ public class PaymentService {
 
   private String appendStatusHistory(String existing, String status, String reason) {
     try {
+      // 订单状态历史保存在 JSON 字段里，追加时先读旧数组再写回。
       List<Map<String, String>> history = existing == null || existing.isBlank()
           ? new ArrayList<>()
           : new ArrayList<>(objectMapper.readValue(existing, new TypeReference<List<Map<String, String>>>() {}));

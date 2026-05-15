@@ -1,4 +1,5 @@
 <template>
+  <!-- 购物车页：按商家分组展示商品，并统一提交勾选商品去结算。 -->
   <div class="cart-view">
     <div class="cart-header">
       <h2>购物车</h2>

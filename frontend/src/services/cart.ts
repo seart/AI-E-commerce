@@ -2,6 +2,7 @@ import { request } from '@/services/request'
 import { mockServer } from '@/services/mock/server'
 import type { CartItem } from '@/types/domain'
 
+// 购物车接口：所有方法都返回最新购物车列表，方便 store 直接整体替换状态。
 export const cartService = {
   getCartItems() {
     return request<CartItem[]>(
@@ -18,6 +19,7 @@ export const cartService = {
       {
         method: 'post',
         url: '/cart/items',
+        // productId 是为了兼容旧后端字段；新商品中心实际按 skuId 处理。
         data: { skuId, productId: skuId },
       },
       () => mockServer.addCartItem(skuId),

@@ -2,6 +2,8 @@ import { request } from '@/services/request'
 import { mockServer } from '@/services/mock/server'
 import type { HomePageData, Merchant, MerchantDetail, ProductCard, ProductDetail } from '@/types/domain'
 
+// 用户端首页、商家、商品查询接口，保持和后端公开接口一一对应。
+// 后台管理接口不在这里，它们统一在 admin 项目里走 `/admin/**`。
 export const catalogService = {
   getHomePage() {
     return request<HomePageData>(

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
+  // 用户端订单接口：创建、查询、取消和申请退款。
   private final OrderService orderService;
 
   public OrderController(OrderService orderService) {

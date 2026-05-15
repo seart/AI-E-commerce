@@ -1,24 +1,28 @@
 server:
   port: 8080
   servlet:
+    # 后端所有接口统一挂载在 /api 下，前端生产环境的 VITE_API_BASE_URL=/api 与这里对应。
     context-path: /api
 
 spring:
   application:
     name: jingdong-backend
   datasource:
+    # MySQL 连接支持环境变量覆盖，方便本地、测试、生产使用不同数据库。
     url: ${MYSQL_URL:jdbc:mysql://localhost:33061/jingdong?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${MYSQL_USERNAME:jingdong}
     password: ${MYSQL_PASSWORD:123456}
     driver-class-name: ${MYSQL_DRIVER:com.mysql.cj.jdbc.Driver}
   data:
     redis:
+      # Redis 仅用于 JWT 黑名单、限流等运行时状态。
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:63791}
       password: ${REDIS_PASSWORD:12345}
       database: ${REDIS_DATABASE:0}
   sql:
     init:
+      # schema.sql / data.sql 负责轻量初始化，存量字段补齐由 DatabaseMigrationRunner 处理。
       mode: always
       schema-locations: classpath:db/schema.sql
       data-locations: classpath:db/data.sql
@@ -38,10 +42,12 @@ mybatis-plus:
 
 app:
   jwt:
+    # JWT 密钥和过期时间必须在生产环境通过环境变量覆盖。
     secret: ${JWT_SECRET:change-this-dev-secret-at-least-32-bytes}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:10080}
     refresh-expiration-minutes: ${JWT_REFRESH_EXPIRATION_MINUTES:43200}
   payment:
+    # 支付默认可配置真实网关；本地没有凭证时可设置 PAYMENT_REAL_GATEWAY_ENABLED=false 使用模拟网关。
     expire-minutes: ${PAYMENT_EXPIRE_MINUTES:15}
     sdk-enabled: ${PAYMENT_SDK_ENABLED:false}
     real-gateway-enabled: ${PAYMENT_REAL_GATEWAY_ENABLED:true}
@@ -52,6 +58,7 @@ app:
       close-topic: ${PAYMENT_CLOSE_TOPIC:jingdong-payment-close}
       close-consumer-group: ${PAYMENT_CLOSE_CONSUMER_GROUP:jingdong-payment-close-consumer}
   cors:
+    # 本地联调允许移动端 5173 和后台 5174；生产应改成真实前端域名。
     allowed-origins:
       - "http://localhost:5173"
       - "http://127.0.0.1:5173"
@@ -62,6 +69,7 @@ wechat:
   pay:
     v3:
       default:
+        # 微信支付凭证全部通过环境变量注入，避免把敏感信息写进仓库。
         app-id: ${WECHAT_PAY_APP_ID:}
         app-secret: ${WECHAT_PAY_APP_SECRET:}
         app-v3-secret: ${WECHAT_PAY_APP_V3_SECRET:}
@@ -72,6 +80,7 @@ wechat:
 ali:
   pay:
     v1:
+      # 支付宝证书和网关地址同样通过环境变量覆盖。
       server-url: ${ALIPAY_SERVER_URL:https://openapi.alipaydev.com/gateway.do}
       app-id: ${ALIPAY_APP_ID:}
       app-private-key-path: ${ALIPAY_APP_PRIVATE_KEY_PATH:}
